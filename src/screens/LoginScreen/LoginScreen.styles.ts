@@ -211,7 +211,7 @@ export const useStyles = makeStyles((theme: Theme) =>
     },
     login_sp: {
       display: "flex",
-      justifyContent: "flex-start",
+      justifyContent: "center",
       width: "100%",
       alignItems: "center",
       gap: "16px",

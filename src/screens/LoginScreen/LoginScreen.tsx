@@ -9,8 +9,8 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { Warning } from "@mui/icons-material";
-
+import { Phone, Warning } from "@mui/icons-material";
+import LocalPhoneRoundedIcon from "@mui/icons-material/LocalPhoneRounded";
 import { useRouter } from "next/router";
 import { dispatch } from "@/store";
 import { setUserState } from "@/store/reducers/userState";
@@ -19,22 +19,25 @@ import {
   showSuccessSnackBar,
 } from "@/store/reducers/snackbar";
 import { lang } from "@/constant/lang";
-import { loginUser, getUserInfo } from "@/api/auth";
+import { loginUser, getUserInfo, register } from "@/api/auth";
 
 const LoginScreen = React.memo(() => {
   const classes = useStyles();
   const router = useRouter();
   const [loadingBtn, setLoadingBtn] = useState(false);
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [passwordCf, setPasswordCf] = useState("");
   const [emailError, setEmailError] = useState(false);
+  const [phoneNumberError, setPhoneNumberError] = useState(false);
   const [passwordError, setPasswordError] = useState(false);
   const [passwordCfError, setPasswordCfError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordCf, setShowPasswordCf] = useState(false);
   const [focusState, setFocusState] = useState({
     email: false,
+    phoneNumber: false,
     password: false,
     passwordCf: false,
   });
@@ -55,6 +58,24 @@ const LoginScreen = React.memo(() => {
 
   const handleEmailFocus = () => {
     setFocusState((prev) => ({ ...prev, email: true }));
+  };
+
+  const handlePhoneNumberChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = event.target.value;
+    setPhoneNumber(value);
+  };
+
+  const handlePhoneNumberBlur = () => {
+    const phoneRegex = /^\d{10}$/;
+    setPhoneNumberError(!phoneRegex.test(phoneNumber));
+    setFocusState((prev) => ({ ...prev, phoneNumber: false }));
+    return !phoneRegex.test(phoneNumber);
+  };
+
+  const handlePhoneNumberFocus = () => {
+    setFocusState((prev) => ({ ...prev, phoneNumber: true }));
   };
 
   const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,42 +120,89 @@ const LoginScreen = React.memo(() => {
     setShowPasswordCf((prev) => !prev);
   };
 
-  //Ghi nhớ đăng nhập
   const handleRememberMeChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     setRememberMe(event.target.checked);
   };
 
+  const handleToggleRegister = () => {
+    setIsRegister((prev) => !prev);
+    // Reset form fields when toggling
+    setEmail("");
+    setPhoneNumber("");
+    setPassword("");
+    setPasswordCf("");
+    setEmailError(false);
+    setPhoneNumberError(false);
+    setPasswordError(false);
+    setPasswordCfError(false);
+  };
+
   const handleSubmit = async () => {
     setLoadingBtn(true);
 
     try {
-      const response = await loginUser(
-        email.trim().toLowerCase(),
-        password.trim()
-      );
+      if (isRegister) {
+        if (password !== passwordCf) {
+          setPasswordCfError(true);
+          dispatch(showErrorSnackBar("Mật khẩu không khớp"));
+          return;
+        }
+        if (handleEmailBlur()) {
+          dispatch(showErrorSnackBar("Email không hợp lệ"));
+          return;
+        }
+        if (handlePhoneNumberBlur()) {
+          dispatch(showErrorSnackBar("Số điện thoại phải có 10 chữ số"));
+          return;
+        }
+        if (handlePasswordBlur()) {
+          dispatch(showErrorSnackBar("Mật khẩu không hợp lệ"));
+          return;
+        }
 
-      if (response?.accessToken) {
-        localStorage.setItem("accessToken", response?.accessToken);
-        const userInfo = await getUserInfo();
-        localStorage.setItem(
-          "userInfo",
-          JSON.stringify({
-            id: userInfo?.id,
-            userRole: userInfo?.role.name,
-          })
+        const payload = {
+          name: "Test User", // You might want to add a name field to the form
+          email: email.trim().toLowerCase(),
+          phoneNumber: phoneNumber.trim(),
+          password: password.trim(),
+          confirmPassword: passwordCf.trim(),
+        };
+        const response = await register(payload);
+        dispatch(showSuccessSnackBar("Đăng ký thành công"));
+      } else {
+        if (handleEmailBlur()) {
+          dispatch(showErrorSnackBar("Email không hợp lệ"));
+          return;
+        }
+        if (handlePasswordBlur()) {
+          dispatch(showErrorSnackBar("Mật khẩu không hợp lệ"));
+          return;
+        }
+        const response = await loginUser(
+          email.trim().toLowerCase(),
+          password.trim()
         );
-        dispatch(
-          setUserState({
-            userRole: userInfo?.role.name,
-          })
-        );
-        dispatch(showSuccessSnackBar(response?.data?.message));
-        // setTimeout(() => {
-        //   window.location.href = "/customer-management";
-        // }, 100);
-        return;
+
+        if (response?.accessToken) {
+          localStorage.setItem("accessToken", response?.accessToken);
+          const userInfo = await getUserInfo();
+          localStorage.setItem(
+            "userInfo",
+            JSON.stringify({
+              id: userInfo?.id,
+              userRole: userInfo?.role.name,
+            })
+          );
+          dispatch(
+            setUserState({
+              userRole: userInfo?.role.name,
+            })
+          );
+          dispatch(showSuccessSnackBar(response?.data?.message));
+          return;
+        }
       }
     } catch (error) {
       dispatch(showErrorSnackBar(error || lang.errorDetected));
@@ -147,10 +215,7 @@ const LoginScreen = React.memo(() => {
     <Box className={classes.container}>
       <Box className={classes.content}>
         <Box className={classes.content_right}>
-          {/* <img
-            src="/images/AivaLogo.svg"
-            className={classes.content_left_logo}
-          /> */}
+          <h5 className="text-2xl font-semibold">ECOMMERCE</h5>
 
           <Box className={classes.content_right_item}>
             <Box className={classes.content_right_item_content}>
@@ -186,6 +251,43 @@ const LoginScreen = React.memo(() => {
                 }}
               />
             </Box>
+            {isRegister && (
+              <Box className={classes.content_right_item_content}>
+                <Typography className={classes.label_input}>
+                  {"Số điện thoại"}
+                </Typography>
+                <TextField
+                  value={phoneNumber}
+                  onChange={handlePhoneNumberChange}
+                  onBlur={handlePhoneNumberBlur}
+                  onFocus={handlePhoneNumberFocus}
+                  error={phoneNumberError}
+                  fullWidth
+                  variant="outlined"
+                  sx={{ marginBottom: phoneNumberError ? "10px" : "0" }}
+                  className={`${classes.input} ${
+                    focusState.phoneNumber ? classes.inputFocused : ""
+                  }`}
+                  inputProps={{
+                    pattern: "\\d{10}",
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LocalPhoneRoundedIcon />
+                      </InputAdornment>
+                    ),
+                    endAdornment: phoneNumberError && (
+                      <InputAdornment position="end">
+                        <Tooltip title="Số điện thoại phải có 10 chữ số">
+                          <Warning color="error" className={classes.wanning} />
+                        </Tooltip>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Box>
+            )}
             <Box className={classes.content_right_item_content}>
               <Typography className={classes.label_input}>
                 {"Mật khẩu"}
@@ -195,15 +297,12 @@ const LoginScreen = React.memo(() => {
                 onChange={handlePasswordChange}
                 onBlur={handlePasswordBlur}
                 onFocus={handlePasswordFocus}
-                // error={passwordError}
+                error={passwordError}
                 variant="outlined"
                 type={showPassword ? "text" : "password"}
                 className={`${classes.input} ${
                   focusState.password ? classes.inputFocused : ""
                 }`}
-                // inputProps={{
-                //   pattern: "[^@\\s]+@[^@\\s]+\\.[^@\\s]+",
-                // }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -212,18 +311,16 @@ const LoginScreen = React.memo(() => {
                   ),
                   endAdornment: (
                     <>
-                      {/* <>
-                        {passwordError && (
-                          <InputAdornment position="end">
-                            <Tooltip title="Mật khẩu ít nhất 8 ký tự, gồm chữ hoa, số và ký tự đặc biệt">
-                              <Warning
-                                color="error"
-                                className={classes.wanning}
-                              />
-                            </Tooltip>
-                          </InputAdornment>
-                        )}
-                      </> */}
+                      {passwordError && (
+                        <InputAdornment position="end">
+                          <Tooltip title="Mật khẩu ít nhất 8 ký tự, gồm chữ hoa, số và ký tự đặc biệt">
+                            <Warning
+                              color="error"
+                              className={classes.wanning}
+                            />
+                          </Tooltip>
+                        </InputAdornment>
+                      )}
                       <InputAdornment
                         position="end"
                         onClick={handleClickShowPassword}
@@ -261,9 +358,6 @@ const LoginScreen = React.memo(() => {
                   className={`${classes.input} ${
                     focusState.passwordCf ? classes.inputFocused : ""
                   }`}
-                  inputProps={{
-                    pattern: "[^@\\s]+@[^@\\s]+\\.[^@\\s]+",
-                  }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -306,28 +400,23 @@ const LoginScreen = React.memo(() => {
             )}
           </Box>
           <Box className={classes.content_right_item}>
-            {!isRegister && (
-              <Box className={classes.login_sp}>
-                <Box className={classes.login_checkbox}>
-                  <Checkbox
-                    checked={rememberMe}
-                    onChange={handleRememberMeChange}
-                    color="primary"
-                  />
-                  <Typography className={classes.note_login}>
-                    {"Ghi nhớ đăng nhập"}
-                  </Typography>
-                </Box>
-              </Box>
-            )}
+            <Box className={classes.login_sp}>
+              <Typography
+                component="a"
+                className={classes.note_login}
+                onClick={handleToggleRegister}
+                style={{ cursor: "pointer" }}
+              >
+                {isRegister ? "Đã có tài khoản" : "Chưa có tài khoản?"}
+              </Typography>
+            </Box>
             <Box className={classes.content_right_item_content}>
               <Button
                 className={classes.btn_login}
                 onClick={handleSubmit}
-                loading={loadingBtn}
+                disabled={loadingBtn}
               >
-                {" "}
-                Login
+                {isRegister ? "Đăng ký" : "Đăng nhập"}
               </Button>
             </Box>
           </Box>

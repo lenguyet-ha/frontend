@@ -5,7 +5,6 @@ import { dispatch } from "@/store";
 import { showErrorSnackBar } from "@/store/reducers/snackbar";
 import { AxiosRequestConfig } from "axios";
 
-import { SrvRecord } from "dns";
 
 /**
  *
@@ -54,3 +53,23 @@ export const getUserInfo = async () => {
     dispatch(showErrorSnackBar(error || lang.errorDetected));
   }
 };
+
+
+export const register = async (data: any) => {
+  try {
+    const payload: AxiosRequestConfig = {
+      url: apiEndPoints.REGISTER_USER,
+      method: "post",
+      data: data,
+    };
+    const response = await axios(payload);
+    if (response.data) {
+      return response.data;
+    } else {
+      dispatch(showErrorSnackBar(response?.data?.message));
+      return response.data;
+    }
+  } catch (error) {
+    dispatch(showErrorSnackBar(error || lang.errorDetected));
+  }
+}
