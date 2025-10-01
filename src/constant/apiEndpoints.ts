@@ -8,4 +8,8 @@ export const apiEndPoints = {
   PRODUCTS: `${API_LOCAL}/products`,
   MANAGE_PRODUCT: `${API_LOCAL}/manage-product/products`,
   //#endregion Product
+
+  //#category
+  CATEGORIES: `${API_LOCAL}/category`,
+  //#endregion category
 };
