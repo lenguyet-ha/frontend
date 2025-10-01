@@ -1,0 +1,16 @@
+import { apiEndPoints } from "@/constant/apiEndpoints";
+import axios from "@/helpers/axious";
+
+export const list = async (query: any) => {
+  try {
+    const payload = {
+      method: "GET",
+      url: apiEndPoints.PRODUCTS,
+      params: query,
+    };
+    const response = await axios(payload);
+    return response.data;
+  } catch (error) {
+    return null;
+  }
+};

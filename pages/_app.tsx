@@ -6,11 +6,13 @@ import Head from "next/head";
 
 import { StyledEngineProvider } from "@mui/material/styles";
 import Snackbar from "@/components/@extended/Snackbar";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { store } from "@/store";
 
 export default function App(props: AppProps) {
   const { Component, pageProps, router } = props;
-  const shouldRenderPageLayout = !["/", "/login"].includes(router.pathname);
+  const shouldRenderLayout = !["/login"].includes(router.pathname);
 
   return (
     <>
@@ -24,14 +26,9 @@ export default function App(props: AppProps) {
       <StyledEngineProvider injectFirst>
         <ReduxProvider store={store}>
           {/* <AuthProvider> */}
-            {shouldRenderPageLayout ? (
-              // <PageLayout>
-                <Component {...pageProps} />
-              // </PageLayout>
-            ) : (
-              <Component {...pageProps} />
-            )}
-
+            {shouldRenderLayout && <Header />}
+            <Component {...pageProps} />
+            {shouldRenderLayout && <Footer />}
             <Snackbar />
           {/* </AuthProvider> */}
         </ReduxProvider>

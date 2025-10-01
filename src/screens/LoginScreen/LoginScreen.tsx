@@ -41,7 +41,6 @@ const LoginScreen = React.memo(() => {
     password: false,
     passwordCf: false,
   });
-  const [rememberMe, setRememberMe] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
 
   const handleEmailChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,8 +83,7 @@ const LoginScreen = React.memo(() => {
   };
 
   const handlePasswordBlur = () => {
-    const passwordRegex =
-      /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)[A-Za-z\d@$!%*?&#]{8,}$/;
     setPasswordError(!passwordRegex.test(password));
     setFocusState((prev) => ({ ...prev, password: false }));
     return !passwordRegex.test(password);
@@ -118,12 +116,6 @@ const LoginScreen = React.memo(() => {
 
   const handleClickShowPasswordCf = () => {
     setShowPasswordCf((prev) => !prev);
-  };
-
-  const handleRememberMeChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setRememberMe(event.target.checked);
   };
 
   const handleToggleRegister = () => {
@@ -163,13 +155,12 @@ const LoginScreen = React.memo(() => {
         }
 
         const payload = {
-          name: "Test User", // You might want to add a name field to the form
           email: email.trim().toLowerCase(),
           phoneNumber: phoneNumber.trim(),
           password: password.trim(),
           confirmPassword: passwordCf.trim(),
         };
-        const response = await register(payload);
+        await register(payload);
         dispatch(showSuccessSnackBar("Đăng ký thành công"));
       } else {
         if (handleEmailBlur()) {
@@ -201,6 +192,7 @@ const LoginScreen = React.memo(() => {
             })
           );
           dispatch(showSuccessSnackBar(response?.data?.message));
+          router.push('/products');
           return;
         }
       }
@@ -313,7 +305,7 @@ const LoginScreen = React.memo(() => {
                     <>
                       {passwordError && (
                         <InputAdornment position="end">
-                          <Tooltip title="Mật khẩu ít nhất 8 ký tự, gồm chữ hoa, số và ký tự đặc biệt">
+                          <Tooltip title="Mật khẩu ít nhất 8 ký tự, gồm chữ và số">
                             <Warning
                               color="error"
                               className={classes.wanning}
