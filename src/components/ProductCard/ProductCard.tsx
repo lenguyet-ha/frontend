@@ -8,6 +8,7 @@ import {
   Button,
   Box,
 } from "@mui/material";
+import { useStyles } from "./ProductCard.styles";
 
 interface ProductCardProps {
   id: number;
@@ -22,6 +23,7 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = memo(
   ({ id, name, description, basePrice, virtualPrice, image, onAddToCart }) => {
     const router = useRouter();
+    const classes = useStyles();
 
     const handleAddToCart = useCallback(
       (e: React.MouseEvent) => {
@@ -38,60 +40,35 @@ const ProductCard: React.FC<ProductCardProps> = memo(
     }, [id, router]);
 
     return (
-      <Card
-        sx={{
-          maxWidth: 300,
-          height: "100%",
-          cursor: "pointer",
-          transition: "transform 0.2s, box-shadow 0.2s",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            boxShadow: 4,
-          },
-        }}
-        onClick={handleCardClick}
-      >
+      <Card className={classes.card} onClick={handleCardClick}>
         <CardMedia component="img" height="200" image={image} alt={name} />
         <CardContent>
           <Typography
             gutterBottom
             variant="h6"
             component="div"
-            sx={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-            }}
+            className={classes.title}
           >
             {name}
           </Typography>
           <Typography
             variant="body2"
             color="text.secondary"
-            sx={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              mb: 2,
-            }}
+            className={classes.description}
           >
             {description}
           </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-            <Typography variant="body1" color="primary" fontWeight="bold">
-              {virtualPrice.toLocaleString()} VND
+          <Box className={classes.priceContainer}>
+            <Typography variant="body1" color="primary" className={classes.price}>
+              {basePrice.toLocaleString()} VND
             </Typography>
             {basePrice !== virtualPrice && (
               <Typography
                 variant="body2"
                 color="text.secondary"
-                sx={{ textDecoration: "line-through" }}
+                className={classes.originalPrice}
               >
-                {basePrice.toLocaleString()} VND
+                {virtualPrice.toLocaleString()} VND
               </Typography>
             )}
           </Box>
@@ -99,7 +76,7 @@ const ProductCard: React.FC<ProductCardProps> = memo(
             size="small"
             variant="contained"
             fullWidth
-            sx={{ mt: 1 }}
+            className={classes.button}
             onClick={handleAddToCart}
           >
             Thêm vào giỏ

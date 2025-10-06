@@ -72,7 +72,7 @@ const ProductDetailInfo: React.FC<ProductDetailInfoProps> = memo(
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
             <Typography variant="h5" color="primary" fontWeight="bold">
-              {virtualPrice.toLocaleString()} VND
+              {basePrice.toLocaleString()} VND
             </Typography>
             {discount > 0 && (
               <Chip label={`-${discount}%`} color="error" size="small" />
@@ -84,7 +84,7 @@ const ProductDetailInfo: React.FC<ProductDetailInfoProps> = memo(
               sx={{ textDecoration: "line-through" }}
               color="text.secondary"
             >
-              {basePrice.toLocaleString()} VND
+              {virtualPrice.toLocaleString()} VND
             </Typography>
           )}
         </Box>

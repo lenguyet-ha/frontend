@@ -1,5 +1,6 @@
 import React, { memo, useState } from "react";
 import { Box, CardMedia } from "@mui/material";
+import { useStyles } from "./ProductDetailImages.styles";
 
 interface ProductDetailImagesProps {
   images: string[];
@@ -11,6 +12,7 @@ const ProductDetailImages: React.FC<ProductDetailImagesProps> = memo(({
   productName,
 }) => {
   const [selectedImage, setSelectedImage] = useState(0);
+  const classes = useStyles();
 
   return (
     <Box>
@@ -19,17 +21,11 @@ const ProductDetailImages: React.FC<ProductDetailImagesProps> = memo(({
         component="img"
         image={images[selectedImage]}
         alt={productName}
-        sx={{
-          width: "100%",
-          height: 500,
-          objectFit: "cover",
-          borderRadius: 2,
-          mb: 2,
-        }}
+        className={classes.mainImage}
       />
 
       {/* Thumbnail Images */}
-      <Box sx={{ display: "flex", gap: 1, overflowX: "auto" }}>
+      <Box className={classes.thumbnailContainer}>
         {images.map((image, index) => (
           <CardMedia
             key={index}
@@ -37,19 +33,9 @@ const ProductDetailImages: React.FC<ProductDetailImagesProps> = memo(({
             image={image}
             alt={`${productName} ${index + 1}`}
             onClick={() => setSelectedImage(index)}
-            sx={{
-              width: 80,
-              height: 80,
-              objectFit: "cover",
-              borderRadius: 1,
-              cursor: "pointer",
-              border: selectedImage === index ? 3 : 1,
-              borderColor: selectedImage === index ? "primary.main" : "grey.300",
-              transition: "all 0.2s",
-              "&:hover": {
-                borderColor: "primary.main",
-              },
-            }}
+            className={`${classes.thumbnail} ${
+              selectedImage === index ? classes.thumbnailSelected : classes.thumbnailUnselected
+            }`}
           />
         ))}
       </Box>
