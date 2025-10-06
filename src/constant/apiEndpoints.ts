@@ -12,4 +12,8 @@ export const apiEndPoints = {
   //#category
   CATEGORIES: `${API_LOCAL}/category`,
   //#endregion category
+
+  //#region Cart
+  CART: `${API_LOCAL}/cart`,
+  //#endregion Cart
 };
