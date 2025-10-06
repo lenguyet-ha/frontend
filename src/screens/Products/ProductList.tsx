@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Box } from "@mui/material";
+import { useRouter } from "next/router";
+import { Box, Snackbar, Alert } from "@mui/material";
 import * as Product from "@/api/product";
 import * as CategoryApi from "@/api/category";
+import * as CartApi from "@/api/cart";
 import { CategorySidebar } from "@/components/CategorySidebar";
 import { ProductFilters } from "@/components/ProductFilters";
 import { ProductGrid } from "@/components/ProductGrid";
@@ -41,6 +43,9 @@ interface ProductType {
 }
 
 const ProductList = () => {
+  const router = useRouter();
+  const { name } = router.query; // Get search query from URL
+  
   const [products, setProducts] = useState<ProductType[]>([]);
   const [categories, setCategories] = useState<CategoryType[]>([]);
   const [page, setPage] = useState(1);
@@ -50,9 +55,14 @@ const ProductList = () => {
   const [maxPrice, setMaxPrice] = useState("");
   const [sortBy, setSortBy] = useState("createdAt");
   const [orderBy, setOrderBy] = useState("desc");
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   const fetchProduct = useCallback(async () => {
-    const query = {
+    const query: any = {
       page,
       limit,
       categories: selectedCategories,
@@ -62,11 +72,17 @@ const ProductList = () => {
       orderBy,
       isPublished: true,
     };
+    
+    // Add name search if present in URL
+    if (name && typeof name === 'string') {
+      query.name = name;
+    }
+    
     const response = await Product.list(query);
     if (response?.data) {
       setProducts(response.data);
     }
-  }, [page, limit, selectedCategories, minPrice, maxPrice, sortBy, orderBy]);
+  }, [page, limit, selectedCategories, minPrice, maxPrice, sortBy, orderBy, name]);
 
   const fetchCategories = useCallback(async () => {
     const response = await CategoryApi.list({});
@@ -98,9 +114,61 @@ const ProductList = () => {
     []
   );
 
-  const handleAddToCart = useCallback((productId: number) => {
-    console.log("Add to cart:", productId);
-    // Implement add to cart logic here
+  const handleAddToCart = useCallback(async (productId: number) => {
+    // Find product to get first SKU
+    const product = products.find(p => p.id === productId);
+    if (!product || !product.skus || product.skus.length === 0) {
+      setSnackbar({
+        open: true,
+        message: 'Sản phẩm không có SKU khả dụng',
+        severity: 'error',
+      });
+      return;
+    }
+
+    // Use first SKU with stock available
+    const availableSku = product.skus.find(sku => sku.stock > 0);
+    if (!availableSku) {
+      setSnackbar({
+        open: true,
+        message: 'Sản phẩm đã hết hàng',
+        severity: 'error',
+      });
+      return;
+    }
+
+    try {
+      const response = await CartApi.addToCart({
+        quantity: 1,
+        skuId: availableSku.id,
+      });
+
+      if (response) {
+        setSnackbar({
+          open: true,
+          message: 'Đã thêm sản phẩm vào giỏ hàng',
+          severity: 'success',
+        });
+        // Trigger cart count refresh by dispatching custom event
+        window.dispatchEvent(new CustomEvent('cart-updated'));
+      } else {
+        setSnackbar({
+          open: true,
+          message: 'Không thể thêm sản phẩm vào giỏ hàng',
+          severity: 'error',
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Đã có lỗi xảy ra',
+        severity: 'error',
+      });
+    }
+  }, [products]);
+
+  const handleCloseSnackbar = useCallback(() => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   }, []);
 
   return (
@@ -132,6 +200,18 @@ const ProductList = () => {
         onPageChange={handlePageChange}
         onAddToCart={handleAddToCart}
       />
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

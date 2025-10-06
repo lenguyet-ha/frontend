@@ -7,9 +7,12 @@ import {
   CircularProgress,
   Typography,
   Button,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
 import * as ProductApi from "@/api/product";
+import * as CartApi from "@/api/cart";
 import { ProductDetailImages } from "@/components/ProductDetailImages";
 import { ProductDetailInfo } from "@/components/ProductDetailInfo";
 import { ProductVariants } from "@/components/ProductVariants";
@@ -63,6 +66,11 @@ const ProductDetailScreen: React.FC = () => {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   const fetchProductDetail = useCallback(async () => {
     if (!id) return;
@@ -89,13 +97,42 @@ const ProductDetailScreen: React.FC = () => {
   }, [fetchProductDetail]);
 
   const handleAddToCart = useCallback(
-    (sku: SKU, quantity: number) => {
-      console.log("Add to cart:", { sku, quantity, productId: product?.id });
-      // TODO: Implement add to cart logic
-      // You can dispatch to Redux store or call an API here
+    async (sku: SKU, quantity: number) => {
+      try {
+        const response = await CartApi.addToCart({
+          quantity,
+          skuId: sku.id,
+        });
+
+        if (response) {
+          setSnackbar({
+            open: true,
+            message: 'Đã thêm sản phẩm vào giỏ hàng',
+            severity: 'success',
+          });
+          // Trigger cart count refresh
+          window.dispatchEvent(new CustomEvent('cart-updated'));
+        } else {
+          setSnackbar({
+            open: true,
+            message: 'Không thể thêm sản phẩm vào giỏ hàng',
+            severity: 'error',
+          });
+        }
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: 'Đã có lỗi xảy ra',
+          severity: 'error',
+        });
+      }
     },
-    [product]
+    []
   );
+
+  const handleCloseSnackbar = useCallback(() => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  }, []);
 
   const handleGoBack = useCallback(() => {
     router.back();
@@ -178,14 +215,26 @@ const ProductDetailScreen: React.FC = () => {
         </Grid>
        
       </Grid>
-       <Box sx={{ mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Mô tả sản phẩm
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            {product.description}
-          </Typography>
-        </Box>
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Mô tả sản phẩm
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          {product.description}
+        </Typography>
+      </Box>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
