@@ -173,12 +173,12 @@ const ProductDetailScreen: React.FC = () => {
   }
 
   return (
-    <Container sx={{ py: 4 }}>
+    <Container sx={{ py: 4, backgroundColor: "#F0F0F0", borderRadius: 2, mt: 4, mb: 4 }}>
       <Button startIcon={<ArrowBack />} onClick={handleGoBack} sx={{ mb: 3 }}>
         Quay lại danh sách sản phẩm
       </Button>
 
-      <Grid container spacing={4}>
+      <Grid container spacing={4} >
         {/* Left: Images */}
         <Grid item xs={12} md={6}>
           <ProductDetailImages
