@@ -184,6 +184,9 @@ const LoginScreen = React.memo(() => {
             JSON.stringify({
               id: userInfo?.id,
               userRole: userInfo?.role.name,
+              name: userInfo?.name,
+              phoneNumber: userInfo?.phoneNumber,
+              avatar: userInfo?.avatar,
             })
           );
           dispatch(
