@@ -3,6 +3,8 @@ export const apiEndPoints = {
   LOGIN_USER: `${API_LOCAL}/auth/login`,
   GET_USER_INFO: `${API_LOCAL}/profile`,
   REGISTER_USER: `${API_LOCAL}/auth/register`,
+  UPDATE_PROFILE: `${API_LOCAL}/profile`,
+  CHANGE_PASSWORD: `${API_LOCAL}/profile/change-password`,
 
   //#region Product
   PRODUCTS: `${API_LOCAL}/products`,
