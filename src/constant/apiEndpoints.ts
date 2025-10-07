@@ -16,4 +16,8 @@ export const apiEndPoints = {
   //#region Cart
   CART: `${API_LOCAL}/cart`,
   //#endregion Cart
+
+  //#region Order
+  ORDER: `${API_LOCAL}/orders`,
+  //#endregion Order
 };
