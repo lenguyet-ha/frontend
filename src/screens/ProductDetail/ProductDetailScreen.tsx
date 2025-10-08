@@ -16,6 +16,7 @@ import * as CartApi from "@/api/cart";
 import { ProductDetailImages } from "@/components/ProductDetailImages";
 import { ProductDetailInfo } from "@/components/ProductDetailInfo";
 import { ProductVariants } from "@/components/ProductVariants";
+import ShopInfo from "@/components/ShopInfo";
 
 interface Brand {
   id: number;
@@ -28,6 +29,12 @@ interface Category {
   name: string;
   logo: string | null;
   parentCategoryId: number | null;
+}
+
+interface ShopInfo {
+  id: number;
+  name: string;
+  avatar: string;
 }
 
 interface Variant {
@@ -52,9 +59,10 @@ interface ProductDetail {
   virtualPrice: number;
   brandId: number;
   images: string[];
-  variants: Record<string, string[]>; // Changed from Variant[] to object
+  variants: Variant[] | Record<string, string[]>; // Support both formats
   description: string;
   createdById: number;
+  shopInfo?: ShopInfo;
   skus: SKU[];
   brand?: Brand;
   categories: Category[];
@@ -66,10 +74,14 @@ const ProductDetailScreen: React.FC = () => {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({
     open: false,
-    message: '',
-    severity: 'success',
+    message: "",
+    severity: "success",
   });
 
   const fetchProductDetail = useCallback(async () => {
@@ -96,42 +108,39 @@ const ProductDetailScreen: React.FC = () => {
     fetchProductDetail();
   }, [fetchProductDetail]);
 
-  const handleAddToCart = useCallback(
-    async (sku: SKU, quantity: number) => {
-      try {
-        const response = await CartApi.addToCart({
-          quantity,
-          skuId: sku.id,
-        });
+  const handleAddToCart = useCallback(async (sku: SKU, quantity: number) => {
+    try {
+      const response = await CartApi.addToCart({
+        quantity,
+        skuId: sku.id,
+      });
 
-        if (response) {
-          setSnackbar({
-            open: true,
-            message: 'Đã thêm sản phẩm vào giỏ hàng',
-            severity: 'success',
-          });
-          // Trigger cart count refresh
-          window.dispatchEvent(new CustomEvent('cart-updated'));
-        } else {
-          setSnackbar({
-            open: true,
-            message: 'Không thể thêm sản phẩm vào giỏ hàng',
-            severity: 'error',
-          });
-        }
-      } catch (error) {
+      if (response) {
         setSnackbar({
           open: true,
-          message: 'Đã có lỗi xảy ra',
-          severity: 'error',
+          message: "Đã thêm sản phẩm vào giỏ hàng",
+          severity: "success",
+        });
+        // Trigger cart count refresh
+        window.dispatchEvent(new CustomEvent("cart-updated"));
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Không thể thêm sản phẩm vào giỏ hàng",
+          severity: "error",
         });
       }
-    },
-    []
-  );
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Đã có lỗi xảy ra",
+        severity: "error",
+      });
+    }
+  }, []);
 
   const handleCloseSnackbar = useCallback(() => {
-    setSnackbar(prev => ({ ...prev, open: false }));
+    setSnackbar((prev) => ({ ...prev, open: false }));
   }, []);
 
   const handleGoBack = useCallback(() => {
@@ -173,12 +182,20 @@ const ProductDetailScreen: React.FC = () => {
   }
 
   return (
-    <Container sx={{ py: 4, backgroundColor: "#F0F0F0", borderRadius: 2, mt: 4, mb: 4 }}>
+    <Container
+      sx={{
+        py: 4,
+        backgroundColor: "#F0F0F0",
+        borderRadius: 2,
+        mt: 4,
+        mb: 4,
+      }}
+    >
       <Button startIcon={<ArrowBack />} onClick={handleGoBack} sx={{ mb: 3 }}>
         Quay lại danh sách sản phẩm
       </Button>
 
-      <Grid container spacing={4} >
+      <Grid container spacing={4}>
         {/* Left: Images */}
         <Grid item xs={12} md={6}>
           <ProductDetailImages
@@ -200,20 +217,23 @@ const ProductDetailScreen: React.FC = () => {
           />
 
           {/* Variants and Add to Cart */}
-          {product.variants && Object.keys(product.variants).length > 0 && (
+          {product.variants && (
+            (Array.isArray(product.variants) && product.variants.length > 0) ||
+            (!Array.isArray(product.variants) && Object.keys(product.variants).length > 0)
+          ) && (
             <ProductVariants
-              variants={Object.entries(product.variants).map(
-                ([key, values]) => ({
-                  value: key,
-                  options: values,
-                })
-              )}
+              variants={Array.isArray(product.variants) 
+                ? product.variants 
+                : Object.entries(product.variants).map(([key, values]) => ({
+                    value: key,
+                    options: Array.isArray(values) ? values : [values],
+                  }))
+              }
               skus={product.skus}
               onAddToCart={handleAddToCart}
             />
           )}
         </Grid>
-       
       </Grid>
       <Box sx={{ mt: 3 }}>
         <Typography variant="h6" gutterBottom>
@@ -224,14 +244,35 @@ const ProductDetailScreen: React.FC = () => {
         </Typography>
       </Box>
 
+      {/* Shop Info */}
+      {product.shopInfo && (
+        <Box sx={{ mt: 3 }}>
+          <ShopInfo
+            shopInfo={product.shopInfo}
+            onViewShop={() => {
+              // Navigate to shop page
+              console.log("Navigate to shop:", product.shopInfo?.id);
+            }}
+            onMessage={() => {
+              // Open chat with shop
+              console.log("Open chat with shop:", product.shopInfo?.id);
+            }}
+          />
+        </Box>
+      )}
+
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>

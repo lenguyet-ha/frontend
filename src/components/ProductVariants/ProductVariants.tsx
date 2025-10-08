@@ -75,7 +75,7 @@ const ProductVariants: React.FC<ProductVariantsProps> = memo(({
             {variant.value}
           </Typography>
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            {variant.options.map((option) => (
+            {Array.isArray(variant?.options) && variant.options.map((option) => (
               <Button
                 key={option}
                 variant={selectedOptions[variant.value] === option ? "contained" : "outlined"}

@@ -36,7 +36,7 @@ const ProductDetailInfo: React.FC<ProductDetailInfoProps> = memo(
   }) => {
     const discount =
       basePrice !== virtualPrice
-        ? Math.round(((basePrice - virtualPrice) / basePrice) * 100)
+        ? Math.round(((basePrice - virtualPrice) / virtualPrice) * 100)
         : 0;
 
     return (
@@ -74,8 +74,8 @@ const ProductDetailInfo: React.FC<ProductDetailInfoProps> = memo(
             <Typography variant="h5" color="primary" fontWeight="bold">
               {basePrice.toLocaleString()} VND
             </Typography>
-            {discount > 0 && (
-              <Chip label={`-${discount}%`} color="error" size="small" />
+            {discount < 0 && (
+              <Chip label={`${discount}%`} color="error" size="small" />
             )}
           </Box>
           {basePrice !== virtualPrice && (
