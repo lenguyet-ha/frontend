@@ -1,6 +1,6 @@
 import { apiEndPoints } from "@/constant/apiEndpoints";
 import { lang } from "@/constant/lang";
-import axios from "@/helpers/axious";
+import axios from "@/helpers/axios";
 import { dispatch } from "@/store";
 import { showErrorSnackBar, showSuccessSnackBar } from "@/store/reducers/snackbar";
 import { AxiosRequestConfig } from "axios";

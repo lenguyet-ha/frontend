@@ -1,5 +1,5 @@
 import { apiEndPoints } from "@/constant/apiEndpoints";
-import axios from "@/helpers/axious";
+import axios from "@/helpers/axios";
 
 interface Receiver {
   name: string;
