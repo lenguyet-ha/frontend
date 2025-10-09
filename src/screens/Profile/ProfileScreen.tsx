@@ -110,7 +110,6 @@ const ProfileScreen = () => {
         localStorage.setItem("userInfo", JSON.stringify(response));
       }
     } catch (error) {
-      console.error("Error fetching profile:", error);
     }
   };
 
@@ -154,7 +153,6 @@ const ProfileScreen = () => {
         window.dispatchEvent(new Event("user-updated"));
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
     } finally {
       setLoading(false);
     }
@@ -176,7 +174,6 @@ const ProfileScreen = () => {
         confirmNewPassword: "",
       });
     } catch (error) {
-      console.error("Error changing password:", error);
     } finally {
       setLoading(false);
     }

@@ -111,7 +111,6 @@ export function showSuccessSnackBar(message: any, title?: string) {
         })
       );
     } catch (err) {
-      console.log("Show snackbar fail", `${err}`);
     }
   };
 }
@@ -136,7 +135,6 @@ export function showErrorSnackBar(message: any, title?: string) {
         })
       );
     } catch (err) {
-      console.log("Show snackbar fail", `${err}`);
     }
   };
 }

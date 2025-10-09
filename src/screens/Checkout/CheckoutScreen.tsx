@@ -115,7 +115,6 @@ const CheckoutScreen: React.FC = () => {
         setCartGroups(JSON.parse(cartData as string));
         setSelectedItems(JSON.parse(selectedItemIds as string));
       } catch (error) {
-        console.error("Error parsing cart data:", error);
         router.push("/cart");
       }
     } else {

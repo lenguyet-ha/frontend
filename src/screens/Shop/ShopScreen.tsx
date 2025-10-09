@@ -122,7 +122,6 @@ const ShopScreen = () => {
     try {
       // Fetch products by shop ID with proper API params
       const response = await ProductApi.list(apiParams);
-      console.log("Shop products response:", response);
 
       if (response?.data) {
         // Extract shop info from first product
