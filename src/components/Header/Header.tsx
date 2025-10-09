@@ -124,6 +124,11 @@ const Header = () => {
     handleCloseMenu();
   }, [router]);
 
+  const handleListOrdersClick = useCallback(() => {
+    router.push("/orders");
+    handleCloseMenu();
+  }, [router]);
+
   const handleLogout = useCallback(() => {
     localStorage.removeItem("userInfo");
     localStorage.removeItem("token");
@@ -201,6 +206,7 @@ const Header = () => {
                   <MenuItem onClick={handleProfileClick}>
                     Thông tin cá nhân
                   </MenuItem>
+                  <MenuItem onClick={handleListOrdersClick}>Đơn mua</MenuItem>
                   <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
                 </StyledMenu>
               </AvatarBox>

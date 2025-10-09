@@ -27,11 +27,16 @@ export const createOrder = async (data: OrderItem[]) => {
   }
 };
 
-export const getOrders = async () => {
+export const getOrders = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}) => {
   try {
     const payload = {
       method: "GET",
       url: apiEndPoints.ORDER,
+      params,
     };
     const response = await axios(payload);
     return response.data;
@@ -53,25 +58,12 @@ export const getOrder = async (id: string) => {
   }
 };
 
-export const updateOrder = async (id: string, data: any) => {
+export const cancelOrder = async (id: string) => {
   try {
     const payload = {
       method: "PUT",
       url: `${apiEndPoints.ORDER}/${id}`,
-      data,
-    };
-    const response = await axios(payload);
-    return response.data;
-  } catch (error) {
-    return null;
-  }
-};
-
-export const cancelOrder = async (id: string) => {
-  try {
-    const payload = {
-      method: "DELETE",
-      url: `${apiEndPoints.ORDER}/${id}`,
+      data: {}, // Empty body as per CancelOrderBodySchema
     };
     const response = await axios(payload);
     return response.data;
