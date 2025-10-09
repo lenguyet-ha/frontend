@@ -244,24 +244,22 @@ const ProductDetailScreen: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* Shop Info */}
-      {product.shopInfo && (
-        <Box sx={{ mt: 3 }}>
-          <ShopInfo
-            shopInfo={product.shopInfo}
-            onViewShop={() => {
-              // Navigate to shop page
-              console.log("Navigate to shop:", product.shopInfo?.id);
-            }}
-            onMessage={() => {
-              // Open chat with shop
-              console.log("Open chat with shop:", product.shopInfo?.id);
-            }}
-          />
-        </Box>
-      )}
-
-      {/* Snackbar for notifications */}
+        {/* Shop Info */}
+        {product.shopInfo && (
+          <Box sx={{ mt: 3 }}>
+            <ShopInfo
+              shopInfo={product.shopInfo}
+              onViewShop={() => {
+                // Navigate to shop page
+                router.push(`/shop/${product.shopInfo?.id}`);
+              }}
+              onMessage={() => {
+                // Open chat with shop
+                console.log("Open chat with shop:", product.shopInfo?.id);
+              }}
+            />
+          </Box>
+        )}      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}

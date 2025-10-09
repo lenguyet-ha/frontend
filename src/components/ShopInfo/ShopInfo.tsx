@@ -1,4 +1,5 @@
 import React from 'react';
+import { useRouter } from 'next/router';
 import { Typography, Button } from '@mui/material';
 import { Store, Message } from '@mui/icons-material';
 import {
@@ -24,12 +25,14 @@ const ShopInfo: React.FC<ShopInfoProps> = ({
   onViewShop, 
   onMessage 
 }) => {
+  const router = useRouter();
+
   const handleViewShop = () => {
     if (onViewShop) {
       onViewShop();
     } else {
-      // Default action - navigate to shop page
-      console.log('Navigate to shop:', shopInfo.id);
+      // Navigate to shop page
+      router.push(`/shop/${shopInfo.id}`);
     }
   };
 
