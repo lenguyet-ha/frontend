@@ -5,25 +5,27 @@ import {
   Box,
   CircularProgress,
   Button,
-  Divider,
-  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   DialogContentText,
+  Divider,
+  Grid,
 } from "@mui/material";
 import {
   ArrowBack,
+  CalendarToday,
+  Receipt,
+  Store,
   LocalShipping,
   Person,
   Phone,
   LocationOn,
-  CalendarToday,
-  Receipt,
-  Store,
 } from "@mui/icons-material";
 import * as OrdersApi from "@/api/orders";
+import * as ReviewsApi from "@/api/reviews";
+import ReviewForm from "@/components/ReviewForm";
 import {
   OrderDetailContainer,
   OrderDetailCard,
@@ -41,6 +43,15 @@ import {
   TotalValue,
   StatusBadge,
 } from "./OrderDetail.styles";
+import {
+  OrderHeader,
+  OrderStatusCard,
+  OrderReceiverCard,
+  OrderProductsCard,
+  OrderReviewsCard,
+  OrderActions,
+  CancelDialog,
+} from "./components";
 
 interface OrderItem {
   id: number;
@@ -101,6 +112,9 @@ const OrderDetailScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [orderReviews, setOrderReviews] = useState<ReviewsApi.Review[] | null>(null);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   useEffect(() => {
     const fetchOrderDetail = async () => {
@@ -117,6 +131,11 @@ const OrderDetailScreen = () => {
 
         if (orderData && orderData.id) {
           setOrder(orderData);
+          
+          // If order is delivered, check for existing reviews
+          if (orderData.status === 'DELIVERED') {
+            fetchOrderReviews(orderData.id);
+          }
         } else {
           setError("Không tìm thấy đơn hàng");
         }
@@ -129,6 +148,18 @@ const OrderDetailScreen = () => {
 
     fetchOrderDetail();
   }, [id]);
+
+  const fetchOrderReviews = useCallback(async (orderId: number) => {
+    setLoadingReviews(true);
+    try {
+      const reviews = await ReviewsApi.getReviewsByOrder(orderId);
+      setOrderReviews(reviews);
+    } catch (error) {
+      console.error('Error fetching order reviews:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  }, []);
 
   const formatPrice = useCallback((price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -172,6 +203,23 @@ const OrderDetailScreen = () => {
   const handleCloseCancelDialog = useCallback(() => {
     setShowCancelDialog(false);
   }, []);
+
+  const handleReviewClick = useCallback(() => {
+    console.log('Review button clicked');
+    console.log('Order items:', order?.items);
+    setShowReviewForm(true);
+  }, [order]);
+
+  const handleCloseReviewForm = useCallback(() => {
+    setShowReviewForm(false);
+  }, []);
+
+  const handleReviewSuccess = useCallback(() => {
+    // Refresh reviews after successful submission
+    if (order) {
+      fetchOrderReviews(order.id);
+    }
+  }, [order, fetchOrderReviews]);
 
   const handleConfirmCancel = useCallback(async () => {
     if (!order) return;
@@ -237,256 +285,66 @@ const OrderDetailScreen = () => {
     );
   }
 
-  const totalAmount = calculateTotal(order.items);
-
   return (
     <OrderDetailContainer>
-      {/* Header */}
-      <Box display="flex" alignItems="center" gap={2} mb={3}>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBack />}
-          onClick={handleGoBack}
-        >
-          Quay lại
-        </Button>
-        <Typography variant="h4" fontWeight="bold">
-          Chi tiết đơn hàng
-        </Typography>
-      </Box>
+      <OrderHeader onGoBack={handleGoBack} />
 
-      {/* Order Status Card */}
-      <OrderDetailCard>
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={3}
-        >
-          <Box>
-            <Typography variant="h5" fontWeight="bold" gutterBottom>
-              Đơn hàng #{order.id}
-            </Typography>
-            <Box display="flex" alignItems="center" gap={1}>
-              <CalendarToday fontSize="small" color="action" />
-              <Typography variant="body2" color="text.secondary">
-                Đặt ngày: {formatDate(order.createdAt)}
-              </Typography>
-            </Box>
-          </Box>
-          <StatusBadge status={order.status}>
-            {STATUS_MAP[order.status] || order.status}
-          </StatusBadge>
-        </Box>
+      <Grid container spacing={3}>
+        <Grid item xs={6}>
+          <OrderStatusCard
+            order={order}
+            formatDate={formatDate}
+            STATUS_MAP={STATUS_MAP}
+          />
+        </Grid>
 
-        <InfoRow>
-          <InfoLabel>
-            <Receipt sx={{ mr: 1, verticalAlign: "middle" }} />
-            Mã đơn hàng
-          </InfoLabel>
-          <InfoValue>#{order.id}</InfoValue>
-        </InfoRow>
+        <Grid item xs={6}>
+          <OrderReceiverCard receiver={order.receiver} />
+        </Grid>
 
-        <InfoRow>
-          <InfoLabel>
-            <Store sx={{ mr: 1, verticalAlign: "middle" }} />
-            Shop
-          </InfoLabel>
-          <InfoValue>{order.shopName}</InfoValue>
-        </InfoRow>
+        <Grid item xs={6}>
+          <OrderProductsCard
+            items={order.items}
+            formatPrice={formatPrice}
+            calculateTotal={calculateTotal}
+            onProductClick={handleProductClick}
+          />
+        </Grid>
 
-        <InfoRow>
-          <InfoLabel>
-            <LocalShipping sx={{ mr: 1, verticalAlign: "middle" }} />
-            Trạng thái
-          </InfoLabel>
-          <InfoValue>
-            <StatusBadge status={order.status}>
-              {STATUS_MAP[order.status] || order.status}
-            </StatusBadge>
-          </InfoValue>
-        </InfoRow>
+        <Grid item xs={6}>
+          <OrderReviewsCard
+            orderStatus={order.status}
+            orderItems={order.items}
+            orderReviews={orderReviews}
+            loadingReviews={loadingReviews}
+          />
+        </Grid>
+      </Grid>
 
-        <InfoRow>
-          <InfoLabel>
-            <CalendarToday sx={{ mr: 1, verticalAlign: "middle" }} />
-            Ngày đặt
-          </InfoLabel>
-          <InfoValue>{formatDate(order.createdAt)}</InfoValue>
-        </InfoRow>
+      <OrderActions
+        orderStatus={order.status}
+        orderReviews={orderReviews}
+        cancelling={cancelling}
+        onReviewClick={handleReviewClick}
+        onCancelClick={handleCancelClick}
+        onGoBack={handleGoBack}
+      />
 
-        <InfoRow>
-          <InfoLabel>
-            <CalendarToday sx={{ mr: 1, verticalAlign: "middle" }} />
-            Cập nhật lần cuối
-          </InfoLabel>
-          <InfoValue>{formatDate(order.updatedAt)}</InfoValue>
-        </InfoRow>
-      </OrderDetailCard>
-
-      {/* Receiver Information */}
-      <OrderDetailCard>
-        <SectionTitle>
-          <Person sx={{ mr: 1, verticalAlign: "middle" }} />
-          Thông tin người nhận
-        </SectionTitle>
-
-        <InfoRow>
-          <InfoLabel>
-            <Person sx={{ mr: 1, verticalAlign: "middle" }} />
-            Tên người nhận
-          </InfoLabel>
-          <InfoValue>{order.receiver.name}</InfoValue>
-        </InfoRow>
-
-        <InfoRow>
-          <InfoLabel>
-            <Phone sx={{ mr: 1, verticalAlign: "middle" }} />
-            Số điện thoại
-          </InfoLabel>
-          <InfoValue>{order.receiver.phone}</InfoValue>
-        </InfoRow>
-
-        <InfoRow>
-          <InfoLabel>
-            <LocationOn sx={{ mr: 1, verticalAlign: "middle" }} />
-            Địa chỉ
-          </InfoLabel>
-          <InfoValue>{order.receiver.address}</InfoValue>
-        </InfoRow>
-      </OrderDetailCard>
-
-      {/* Products List */}
-      <OrderDetailCard>
-        <SectionTitle>
-          <Receipt sx={{ mr: 1, verticalAlign: "middle" }} />
-          Sản phẩm ({order.items.length})
-        </SectionTitle>
-
-        {order.items.map((item) => (
-          <ProductItem key={item.id}>
-            <ProductImage
-              src={item.image}
-              alt={item.productName}
-              onClick={() => handleProductClick(item.productId)}
-              style={{ cursor: "pointer" }}
-            />
-            <ProductInfo>
-              <Typography
-                variant="subtitle1"
-                fontWeight="medium"
-                sx={{
-                  cursor: "pointer",
-                  "&:hover": { color: "primary.main" },
-                }}
-                onClick={() => handleProductClick(item.productId)}
-              >
-                {item.productTranslations.length > 0
-                  ? item.productTranslations[0].name
-                  : item.productName}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Phân loại: {item.skuValue}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Số lượng: x{item.quantity}
-              </Typography>
-            </ProductInfo>
-            <PriceInfo>
-              <Typography
-                variant="body1"
-                color="primary.main"
-                fontWeight="medium"
-              >
-                {formatPrice(item.skuPrice)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Tổng: {formatPrice(item.skuPrice * item.quantity)}
-              </Typography>
-            </PriceInfo>
-          </ProductItem>
-        ))}
-
-        {/* Total */}
-        <TotalSection>
-          <TotalRow>
-            <TotalLabel>Tổng số lượng:</TotalLabel>
-            <Typography variant="body1" fontWeight="medium">
-              {order.items.reduce((sum, item) => sum + item.quantity, 0)} sản
-              phẩm
-            </Typography>
-          </TotalRow>
-          <TotalRow>
-            <TotalLabel>Tổng tiền hàng:</TotalLabel>
-            <TotalValue>{formatPrice(totalAmount)}</TotalValue>
-          </TotalRow>
-          <Divider sx={{ my: 2 }} />
-          <TotalRow>
-            <Typography variant="h6" fontWeight="bold">
-              Tổng thanh toán:
-            </Typography>
-            <TotalValue>{formatPrice(totalAmount)}</TotalValue>
-          </TotalRow>
-        </TotalSection>
-      </OrderDetailCard>
-
-      {/* Action Buttons */}
-      <Box display="flex" justifyContent="flex-end" gap={2} mt={3}>
-        {order.status === "DELIVERED" && (
-          <Button variant="outlined" size="large">
-            Đánh giá
-          </Button>
-        )}
-        {(order.status === "PENDING_PAYMENT" ||
-          order.status === "PENDING_PICKUP") && (
-          <Button 
-            variant="outlined" 
-            color="error" 
-            size="large"
-            onClick={handleCancelClick}
-            disabled={cancelling}
-          >
-            {cancelling ? 'Đang huỷ...' : 'Huỷ đơn'}
-          </Button>
-        )}
-        <Button variant="contained" size="large" onClick={handleGoBack}>
-          Quay lại danh sách
-        </Button>
-      </Box>
-
-      {/* Cancel Confirmation Dialog */}
-      <Dialog
+      <CancelDialog
         open={showCancelDialog}
         onClose={handleCloseCancelDialog}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Xác nhận huỷ đơn hàng</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Bạn có chắc chắn muốn huỷ đơn hàng #{order.id}?
-            <br />
-            Thao tác này không thể hoàn tác.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={handleCloseCancelDialog}
-            disabled={cancelling}
-          >
-            Không
-          </Button>
-          <Button 
-            onClick={handleConfirmCancel} 
-            color="error" 
-            variant="contained"
-            disabled={cancelling}
-            autoFocus
-          >
-            {cancelling ? 'Đang xử lý...' : 'Xác nhận huỷ'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onConfirm={handleConfirmCancel}
+        orderId={order.id}
+        cancelling={cancelling}
+      />
+
+      <ReviewForm
+        open={showReviewForm}
+        onClose={handleCloseReviewForm}
+        orderId={order.id}
+        items={order.items}
+        onSuccess={handleReviewSuccess}
+      />
     </OrderDetailContainer>
   );
 };

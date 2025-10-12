@@ -17,6 +17,7 @@ import { ProductDetailImages } from "@/components/ProductDetailImages";
 import { ProductDetailInfo } from "@/components/ProductDetailInfo";
 import { ProductVariants } from "@/components/ProductVariants";
 import ShopInfo from "@/components/ShopInfo";
+import ProductReviews from "@/components/ProductReviews";
 
 interface Brand {
   id: number;
@@ -259,7 +260,14 @@ const ProductDetailScreen: React.FC = () => {
               }}
             />
           </Box>
-        )}      {/* Snackbar for notifications */}
+        )}
+
+      {/* Product Reviews */}
+      <Box sx={{ mt: 4 }}>
+        <ProductReviews productId={product.id} />
+      </Box>
+
+      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}

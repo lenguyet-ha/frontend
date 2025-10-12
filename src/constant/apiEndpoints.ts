@@ -22,4 +22,12 @@ export const apiEndPoints = {
   //#region Order
   ORDER: `${API_LOCAL}/orders`,
   //#endregion Order
+
+  //#region Media
+  MEDIA: `${API_LOCAL}/media`,
+  //#endregion Media
+
+  //#region Reviews
+  REVIEWS: `${API_LOCAL}/reviews`,
+  //#endregion Reviews
 };

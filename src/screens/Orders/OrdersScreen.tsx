@@ -17,6 +17,7 @@ import {
 } from "@mui/icons-material";
 import { useRouter } from "next/router";
 import * as OrdersApi from "@/api/orders";
+import ReviewForm from "@/components/ReviewForm";
 import {
   OrdersContainer,
   OrdersHeader,
@@ -199,11 +200,6 @@ const OrdersScreen = () => {
     [router]
   );
 
-  const handleReviewClick = useCallback((orderId: number) => {
-    // Navigate to review page
-    console.log("Review order:", orderId);
-  }, []);
-
   const renderOrderCard = (order: Order) => {
     const isExpanded = expandedOrders.has(order.id);
     const visibleItems = isExpanded ? order.items : order.items.slice(0, 1);
@@ -283,15 +279,6 @@ const OrdersScreen = () => {
         <OrderFooter>
           <PriceText>Tổng: {formatPrice(orderTotal)}</PriceText>
           <Box display="flex" gap={1}>
-            {activeTab === ORDER_STATUS.DELIVERED && (
-              <Button
-                variant="outlined"
-                startIcon={<Star />}
-                onClick={() => handleReviewClick(order.id)}
-              >
-                Đánh giá
-              </Button>
-            )}
             <Button
               variant="contained"
               onClick={() => router.push(`/orders/${order.id}`)}
