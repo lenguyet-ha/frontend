@@ -25,6 +25,8 @@ import {
 } from "@mui/icons-material";
 import * as ProductApi from "@/api/product";
 import { ProductCard } from "@/components/ProductCard";
+import Chat from "@/components/Chat";
+import socketService from "@/services/socketService";
 import {
   ShopContainer,
   ShopBanner,
@@ -81,6 +83,27 @@ const ShopScreen = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [page, setPage] = useState(1);
+  const [showChat, setShowChat] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id: number; name: string } | null>(null);
+
+  // Get current user info
+  useEffect(() => {
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      try {
+        const user = JSON.parse(userInfo);
+        setCurrentUser({ id: user.id, name: user.name });
+        
+        // Connect to WebSocket if not already connected
+        const token = localStorage.getItem('token');
+        if (token && !socketService.isConnected) {
+          socketService.connect(token);
+        }
+      } catch (error) {
+        console.error('Error parsing user info:', error);
+      }
+    }
+  }, []);
 
   // Debounce search query
   useEffect(() => {
@@ -182,9 +205,23 @@ const ShopScreen = () => {
   }, [router]);
 
   const handleContactShop = useCallback(() => {
-    // Implement chat functionality
-    console.log("Contact shop:", shopData?.shopInfo.id);
-  }, [shopData]);
+    if (!currentUser || !shopData?.shopInfo) {
+      console.log('Missing user or shop info');
+      return;
+    }
+    
+    // Don't allow chatting with yourself
+    if (currentUser.id === shopData.shopInfo.id) {
+      console.log('Cannot chat with yourself');
+      return;
+    }
+    
+    setShowChat(true);
+  }, [currentUser, shopData]);
+
+  const handleCloseChat = useCallback(() => {
+    setShowChat(false);
+  }, []);
 
   const handleFollowShop = useCallback(() => {
     // Implement follow functionality
@@ -400,6 +437,27 @@ const ShopScreen = () => {
           )}
         </ProductsSection>
       </Container>
+
+      {/* Chat Dialog */}
+      {showChat && currentUser && shopData?.shopInfo && (
+        <Box
+          position="fixed"
+          bottom={16}
+          right={16}
+          zIndex={1300}
+        >
+          <Chat
+            open={showChat}
+            onClose={handleCloseChat}
+            otherUser={{
+              id: shopData.shopInfo.id,
+              name: shopData.shopInfo.name,
+              avatar: shopData.shopInfo.avatar || undefined,
+            }}
+            currentUserId={currentUser.id}
+          />
+        </Box>
+      )}
     </ShopContainer>
   );
 };

@@ -30,4 +30,8 @@ export const apiEndPoints = {
   //#region Reviews
   REVIEWS: `${API_LOCAL}/reviews`,
   //#endregion Reviews
+
+  //#region Messages
+  MESSAGES: `${API_LOCAL}/messages`,
+  //#endregion Messages
 };

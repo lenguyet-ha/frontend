@@ -18,6 +18,10 @@ import { ProductDetailInfo } from "@/components/ProductDetailInfo";
 import { ProductVariants } from "@/components/ProductVariants";
 import ShopInfo from "@/components/ShopInfo";
 import ProductReviews from "@/components/ProductReviews";
+import Chat from "@/components/Chat";
+import { useSelector, useDispatch } from "@/store/store";
+import { openChat, closeChat } from "@/store/reducers/chat";
+import { ChatWrapper } from "./ProductDetailScreen.styles";
 
 interface Brand {
   id: number;
@@ -72,6 +76,9 @@ interface ProductDetail {
 const ProductDetailScreen: React.FC = () => {
   const router = useRouter();
   const { id } = router.query;
+  const currentUserId = Number(useSelector((state) => state.userState.info.id));
+  const dispatch = useDispatch();
+  const chat = useSelector((state) => state.chat);
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -256,7 +263,14 @@ const ProductDetailScreen: React.FC = () => {
               }}
               onMessage={() => {
                 // Open chat with shop
-                console.log("Open chat with shop:", product.shopInfo?.id);
+                if (product.shopInfo) {
+                  dispatch(closeChat());
+                  dispatch(openChat({
+                    id: product.shopInfo.id,
+                    name: product.shopInfo.name,
+                    avatar: product.shopInfo.avatar,
+                  }));
+                }
               }}
             />
           </Box>
@@ -266,6 +280,18 @@ const ProductDetailScreen: React.FC = () => {
       <Box sx={{ mt: 4 }}>
         <ProductReviews productId={product.id} />
       </Box>
+
+      {/* Chat */}
+      {chat.isOpen && chat.currentUser && (
+        <ChatWrapper>
+          <Chat
+            open={chat.isOpen}
+            onClose={() => dispatch(closeChat())}
+            otherUser={chat.currentUser}
+            currentUserId={currentUserId}
+          />
+        </ChatWrapper>
+      )}
 
       {/* Snackbar for notifications */}
       <Snackbar

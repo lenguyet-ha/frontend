@@ -8,10 +8,19 @@ import {
   Container,
   MenuItem,
   Box,
+  Popover,
 } from "@mui/material";
-import { Search, ShoppingCart, Person } from "@mui/icons-material";
+import { Search, ShoppingCart, Person, Message } from "@mui/icons-material";
 import * as ProductApi from "@/api/product";
 import * as CartApi from "@/api/cart";
+import * as MessagesApi from "@/api/messages";
+import ConversationsList from "@/components/ConversationsList";
+import Chat from "@/components/Chat";
+import WebSocketStatus from "@/components/WebSocketStatus";
+import socketService from "@/services/socketService";
+import type { User } from "@/api/messages";
+import { useSelector, useDispatch } from "@/store/store";
+import { openChat, closeChat } from "@/store/reducers/chat";
 import {
   StyledAppBar,
   LogoTypography,
@@ -27,19 +36,33 @@ import { display } from "@mui/system";
 
 const Header = () => {
   const router = useRouter();
+  const dispatch = useDispatch();
+  const chat = useSelector((state) => state.chat);
   const [searchQuery, setSearchQuery] = useState("");
   const [cartCount, setCartCount] = useState(0);
   const [userInfo, setUserInfo] = useState<any>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showConversations, setShowConversations] = useState(false);
+  const [conversationsAnchor, setConversationsAnchor] = useState<null | HTMLElement>(null);
 
   // Get user info from localStorage
   useEffect(() => {
     const loadUserInfo = () => {
       const storedUserInfo = localStorage.getItem("userInfo");
       if (storedUserInfo) {
-        setUserInfo(JSON.parse(storedUserInfo));
+        const user = JSON.parse(storedUserInfo);
+        setUserInfo(user);
+        
+        // Connect to WebSocket if not already connected
+        const token = localStorage.getItem('accessToken');
+        if (token && !socketService.isConnected) {
+          socketService.connect(token);
+        }
       } else {
         setUserInfo(null);
+        // Disconnect WebSocket if user logs out
+        socketService.disconnect();
       }
     };
 
@@ -56,6 +79,47 @@ const Header = () => {
       window.removeEventListener("user-updated", handleUserUpdate);
     };
   }, []);
+
+  // Fetch unread messages count
+  const fetchUnreadCount = useCallback(async () => {
+    if (!userInfo) {
+      setUnreadCount(0);
+      return;
+    }
+    
+    try {
+      const response = await MessagesApi.getUnreadCount();
+      if (response.success) {
+        setUnreadCount(response.data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, [userInfo]);
+
+  // Setup WebSocket listeners for real-time updates
+  useEffect(() => {
+    if (!userInfo) return;
+
+    const handleNewMessage = () => {
+      fetchUnreadCount();
+    };
+
+    const handleMessageRead = () => {
+      fetchUnreadCount();
+    };
+
+    socketService.on('message_notification', handleNewMessage);
+    socketService.on('messages_read', handleMessageRead);
+
+    // Initial fetch
+    fetchUnreadCount();
+
+    return () => {
+      socketService.off('message_notification');
+      socketService.off('messages_read');
+    };
+  }, [userInfo, fetchUnreadCount]);
 
   const fetchCartCount = useCallback(async () => {
     const response = await CartApi.getCart();
@@ -118,6 +182,34 @@ const Header = () => {
   const handleCloseMenu = useCallback(() => {
     setAnchorEl(null);
   }, []);
+
+  const handleMessagesClick = useCallback(
+    (event: React.MouseEvent<HTMLElement>) => {
+      setConversationsAnchor(event.currentTarget);
+      setShowConversations(true);
+    },
+    []
+  );
+
+  const handleCloseConversations = useCallback(() => {
+    setShowConversations(false);
+    setConversationsAnchor(null);
+  }, []);
+
+  const handleConversationSelect = useCallback((user: User) => {
+    dispatch(closeChat());
+    dispatch(openChat({
+      id: user.id,
+      name: user.name,
+      avatar: user.avatar,
+    }));
+    setShowConversations(false);
+    setConversationsAnchor(null);
+  }, [dispatch]);
+
+  const handleCloseChat = useCallback(() => {
+    dispatch(closeChat());
+  }, [dispatch]);
 
   const handleProfileClick = useCallback(() => {
     router.push("/profile");
@@ -184,6 +276,24 @@ const Header = () => {
               </IconButton>
             </CartBox>
 
+            {/* Messages Icon */}
+            {userInfo && (
+              <CartBox>
+                <IconButton
+                  color="inherit"
+                  onClick={handleMessagesClick}
+                  size="large"
+                >
+                  <Badge badgeContent={unreadCount} color="error">
+                    <Message />
+                  </Badge>
+                </IconButton>
+              </CartBox>
+            )}
+
+            {/* WebSocket Status */}
+            {userInfo && <WebSocketStatus />}
+
             {/* User Avatar */}
             {userInfo && (
               <AvatarBox>
@@ -215,6 +325,47 @@ const Header = () => {
           {/* Cart Icon */}
         </Toolbar>
       </Container>
+
+      {/* Conversations List Popover */}
+      <Popover
+        open={showConversations}
+        anchorEl={conversationsAnchor}
+        onClose={handleCloseConversations}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        {userInfo && (
+          <ConversationsList
+            open={showConversations}
+            onClose={handleCloseConversations}
+            onConversationSelect={handleConversationSelect}
+            currentUserId={userInfo.id}
+          />
+        )}
+      </Popover>
+
+      {/* Chat Modal */}
+      {chat.isOpen && chat.currentUser && userInfo && (
+        <Box
+          position="fixed"
+          bottom={16}
+          right={16}
+          zIndex={1400}
+        >
+          <Chat
+            open={chat.isOpen}
+            onClose={handleCloseChat}
+            otherUser={chat.currentUser}
+            currentUserId={userInfo.id}
+          />
+        </Box>
+      )}
     </StyledAppBar>
   );
 };
