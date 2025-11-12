@@ -1,19 +1,68 @@
 import { apiEndPoints } from "@/constant/apiEndpoints";
 import axios from "@/helpers/axios";
 
-interface Receiver {
+export interface Receiver {
   name: string;
   phone: string;
   address: string;
 }
 
-interface OrderItem {
+export interface OrderItem {
   shopId: number;
   receiver: Receiver;
   cartItemIds: number[];
+  // Tính toán tài chính (BẮT BUỘC)
+  subtotal: number;
+  discountAmount: number;
+  total: number;
+  // Các trường tùy chọn
+  discountCodeId?: number;
+  shippingMethodId?: number;
+  paymentMethodId?: number;
 }
 
-export const createOrder = async (data: OrderItem[]) => {
+export interface CreateOrderResponse {
+  orders: Array<{
+    id: number;
+    userId: number;
+    status: string;
+    receiver: Receiver;
+    shopId: number;
+    subtotal: number;
+    discountAmount: number;
+    total: number;
+    commissionRate: number;
+    adminCommissionAmount: number;
+    shopPayoutAmount: number;
+    payoutStatus: string;
+    paymentMethodId?: number;
+    paymentMethod?: {
+      id: number;
+      name: string;
+      key: string;
+    };
+    shippingMethodId?: number;
+    shippingMethod?: {
+      id: number;
+      name: string;
+      provider: string;
+      price: number;
+    };
+    discountCodeId?: number;
+    discountCode?: {
+      id: number;
+      code: string;
+      type: string;
+      value: number;
+      bearer: string;
+    };
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  paymentId?: number;
+}
+
+export const createOrder = async (data: OrderItem[]): Promise<CreateOrderResponse | null> => {
   try {
     const payload = {
       method: "POST",
@@ -23,6 +72,7 @@ export const createOrder = async (data: OrderItem[]) => {
     const response = await axios(payload);
     return response.data;
   } catch (error) {
+    console.error("Error creating order:", error);
     return null;
   }
 };
@@ -68,6 +118,24 @@ export const cancelOrder = async (id: string) => {
     const response = await axios(payload);
     return response.data;
   } catch (error) {
+    return null;
+  }
+};
+
+export const updateOrderStatus = async (
+  orderId: string | number,
+  status: string
+) => {
+  try {
+    const payload = {
+      method: "PATCH",
+      url: `${apiEndPoints.ORDER}/${orderId}/status`,
+      data: { status },
+    };
+    const response = await axios(payload);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating order status:", error);
     return null;
   }
 };

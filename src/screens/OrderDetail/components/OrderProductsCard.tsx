@@ -107,17 +107,7 @@ const OrderProductsCard: React.FC<OrderProductsCardProps> = ({
             {items.reduce((sum, item) => sum + item.quantity, 0)} sản phẩm
           </Typography>
         </TotalRow>
-        <TotalRow>
-          <TotalLabel>Tổng tiền hàng:</TotalLabel>
-          <TotalValue>{formatPrice(totalAmount)}</TotalValue>
-        </TotalRow>
-        <Divider sx={{ my: 2 }} />
-        <TotalRow>
-          <Typography variant="h6" fontWeight="bold">
-            Tổng thanh toán:
-          </Typography>
-          <TotalValue>{formatPrice(totalAmount)}</TotalValue>
-        </TotalRow>
+      
       </TotalSection>
     </OrderDetailCard>
   );

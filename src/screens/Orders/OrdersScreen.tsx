@@ -92,6 +92,37 @@ interface Order {
   status: string;
   shopId: number;
   items: OrderItem[];
+  // Financial information
+  subtotal: number;
+  discountAmount: number;
+  total: number;
+  commissionRate: number;
+  adminCommissionAmount: number;
+  shopPayoutAmount: number;
+  payoutStatus: string;
+  // Payment & Shipping
+  paymentMethodId?: number;
+  paymentMethod?: {
+    id: number;
+    name: string;
+    key: string;
+    description: string;
+  };
+  shippingMethodId?: number;
+  shippingMethod?: {
+    id: number;
+    name: string;
+    provider: string;
+    price: number;
+  };
+  discountCodeId?: number;
+  discountCode?: {
+    id: number;
+    code: string;
+    type: string;
+    value: number;
+    bearer: string;
+  };
 }
 
 interface OrdersResponse {
@@ -173,8 +204,9 @@ const OrdersScreen = () => {
     });
   }, []);
 
-  const calculateOrderTotal = useCallback((items: OrderItem[]) => {
-    return items.reduce(
+  const calculateOrderTotal = useCallback((order: Order) => {
+    // Use order.total if available (from API), otherwise calculate from items
+    return order.total || order.items.reduce(
       (total, item) => total + item.skuPrice * item.quantity,
       0
     );
@@ -204,7 +236,7 @@ const OrdersScreen = () => {
     const isExpanded = expandedOrders.has(order.id);
     const visibleItems = isExpanded ? order.items : order.items.slice(0, 1);
     const hasMoreItems = order.items.length > 1;
-    const orderTotal = calculateOrderTotal(order.items);
+    const orderTotal = calculateOrderTotal(order);
 
     return (
       <OrderCard key={order.id}>
@@ -252,7 +284,7 @@ const OrdersScreen = () => {
                 Số lượng: {item.quantity}
               </Typography>
               <Typography
-                variant="body1"
+                variant="body2"
                 color="primary.main"
                 fontWeight="medium"
               >
@@ -276,8 +308,47 @@ const OrdersScreen = () => {
           </Box>
         )}
 
+        {/* Order Financial Summary */}
+        <Box sx={{ px: 2, pb: 2, borderTop: '1px solid #e0e0e0', pt: 2 }}>
+          <Box display="flex" justifyContent="space-between" mb={1}>
+            <Typography variant="body2" color="text.secondary">
+              Tổng tiền hàng:
+            </Typography>
+            <Typography variant="body2">
+              {formatPrice(order.subtotal || calculateOrderTotal(order))}
+            </Typography>
+          </Box>
+          
+          {order.shippingMethod && (
+            <Box display="flex" justifyContent="space-between" mb={1}>
+              <Typography variant="body2" color="text.secondary">
+                Phí vận chuyển ({order.shippingMethod.name}):
+              </Typography>
+              <Typography variant="body2">
+                {formatPrice(order.shippingMethod.price)}
+              </Typography>
+            </Box>
+          )}
+          
+          {order.discountCode && order.discountAmount > 0 && (
+            <Box display="flex" justifyContent="space-between" mb={1}>
+              <Typography variant="body2" color="success.main">
+                Giảm giá ({order.discountCode.code}):
+              </Typography>
+              <Typography variant="body2" color="success.main">
+                -{formatPrice(order.discountAmount)}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+
         <OrderFooter>
-          <PriceText>Tổng: {formatPrice(orderTotal)}</PriceText>
+          <Box>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Tổng thanh toán
+            </Typography>
+            <PriceText>{formatPrice(orderTotal)}</PriceText>
+          </Box>
           <Box display="flex" gap={1}>
             <Button
               variant="contained"

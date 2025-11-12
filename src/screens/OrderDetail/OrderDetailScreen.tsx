@@ -92,6 +92,37 @@ interface OrderDetail {
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
+  // Financial information
+  subtotal: number;
+  discountAmount: number;
+  total: number;
+  commissionRate: number;
+  adminCommissionAmount: number;
+  shopPayoutAmount: number;
+  payoutStatus: string;
+  // Payment & Shipping
+  paymentMethodId?: number;
+  paymentMethod?: {
+    id: number;
+    name: string;
+    key: string;
+    description: string;
+  };
+  shippingMethodId?: number;
+  shippingMethod?: {
+    id: number;
+    name: string;
+    provider: string;
+    price: number;
+  };
+  discountCodeId?: number;
+  discountCode?: {
+    id: number;
+    code: string;
+    type: string;
+    value: number;
+    bearer: string;
+  };
 }
 
 const STATUS_MAP: Record<string, string> = {
@@ -290,7 +321,7 @@ const OrderDetailScreen = () => {
       <OrderHeader onGoBack={handleGoBack} />
 
       <Grid container spacing={3}>
-        <Grid item xs={6}>
+        <Grid item xs={12} md={6}>
           <OrderStatusCard
             order={order}
             formatDate={formatDate}
@@ -298,11 +329,11 @@ const OrderDetailScreen = () => {
           />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item xs={12} md={6}>
           <OrderReceiverCard receiver={order.receiver} />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item xs={12} md={6}>
           <OrderProductsCard
             items={order.items}
             formatPrice={formatPrice}
@@ -311,7 +342,104 @@ const OrderDetailScreen = () => {
           />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item xs={12} md={6}>
+          {/* Order Financial Details Card */}
+          <OrderDetailCard>
+            <SectionTitle>
+              <Receipt sx={{ mr: 1 }} />
+              Thông tin thanh toán
+            </SectionTitle>
+            <Divider sx={{ mb: 2 }} />
+
+            <Box>
+              {/* Payment Method */}
+              {order.paymentMethod && (
+                <InfoRow>
+                  <InfoLabel>Phương thức thanh toán:</InfoLabel>
+                  <InfoValue>{order.paymentMethod.name}</InfoValue>
+                </InfoRow>
+              )}
+
+              {/* Shipping Method */}
+              {order.shippingMethod && (
+                <>
+                  <InfoRow>
+                    <InfoLabel>Phương thức vận chuyển:</InfoLabel>
+                    <InfoValue>
+                      {order.shippingMethod.name} - {order.shippingMethod.provider}
+                    </InfoValue>
+                  </InfoRow>
+                  <InfoRow>
+                    <InfoLabel>Phí vận chuyển:</InfoLabel>
+                    <InfoValue>{formatPrice(order.shippingMethod.price)}</InfoValue>
+                  </InfoRow>
+                </>
+              )}
+
+              {/* Discount Code */}
+              {order.discountCode && (
+                <InfoRow>
+                  <InfoLabel>Mã giảm giá:</InfoLabel>
+                  <InfoValue>
+                    {order.discountCode.code} 
+                    {order.discountCode.type === 'PERCENTAGE' 
+                      ? ` (${order.discountCode.value}%)` 
+                      : ` (${formatPrice(order.discountCode.value)})`}
+                  </InfoValue>
+                </InfoRow>
+              )}
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Financial Breakdown */}
+              <TotalSection>
+                <TotalRow>
+                  <Typography variant="body2" color="text.secondary">
+                    Tổng tiền hàng:
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatPrice(order.subtotal)}
+                  </Typography>
+                </TotalRow>
+
+                {order.shippingMethod && (
+                  <TotalRow>
+                    <Typography variant="body2" color="text.secondary">
+                      Phí vận chuyển:
+                    </Typography>
+                    <Typography variant="body2">
+                      {formatPrice(order.shippingMethod.price)}
+                    </Typography>
+                  </TotalRow>
+                )}
+
+                {order.discountAmount > 0 && (
+                  <TotalRow>
+                    <Typography variant="body2" color="success.main">
+                      Giảm giá:
+                    </Typography>
+                    <Typography variant="body2" color="success.main">
+                      -{formatPrice(order.discountAmount)}
+                    </Typography>
+                  </TotalRow>
+                )}
+
+                <Divider sx={{ my: 1 }} />
+
+                <TotalRow>
+                  <Typography variant="h6" fontWeight="bold">
+                    Tổng thanh toán:
+                  </Typography>
+                  <Typography variant="h6" color="primary.main" fontWeight="bold">
+                    {formatPrice(order.total)}
+                  </Typography>
+                </TotalRow>
+              </TotalSection>
+            </Box>
+          </OrderDetailCard>
+        </Grid>
+
+        <Grid item xs={12}>
           <OrderReviewsCard
             orderStatus={order.status}
             orderItems={order.items}

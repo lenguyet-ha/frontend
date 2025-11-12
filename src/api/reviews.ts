@@ -127,7 +127,9 @@ export const getReviewsByProduct = async (params: {
   }
 };
 
-export const getReviewsByOrder = async (orderId: number): Promise<Review[] | null> => {
+export const getReviewsByOrder = async (
+  orderId: number
+): Promise<Review[] | null> => {
   try {
     const payload = {
       method: "GET",

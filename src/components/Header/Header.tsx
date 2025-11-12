@@ -221,6 +221,11 @@ const Header = () => {
     handleCloseMenu();
   }, [router]);
 
+  const handleSellerRegistrationClick = useCallback(() => {
+    router.push("/seller-registration");
+    handleCloseMenu();
+  }, [router]);
+
   const handleLogout = useCallback(() => {
     localStorage.removeItem("userInfo");
     localStorage.removeItem("token");
@@ -317,6 +322,9 @@ const Header = () => {
                     Thông tin cá nhân
                   </MenuItem>
                   <MenuItem onClick={handleListOrdersClick}>Đơn mua</MenuItem>
+                  <MenuItem onClick={handleSellerRegistrationClick}>
+                    Đăng ký bán hàng
+                  </MenuItem>
                   <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
                 </StyledMenu>
               </AvatarBox>

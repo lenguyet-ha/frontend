@@ -19,12 +19,25 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import { useRouter } from "next/router";
 import { useStyles } from "./Checkout.styles";
 import { dispatch } from "@/store";
-import { showErrorSnackBar, showSuccessSnackBar } from "@/store/reducers/snackbar";
-import { createOrder } from "@/api/orders";
+import {
+  showErrorSnackBar,
+  showSuccessSnackBar,
+} from "@/store/reducers/snackbar";
+import { createOrder, OrderItem, updateOrderStatus } from "@/api/orders";
+import {
+  getDiscountCodes,
+  DiscountCode,
+  isDiscountCodeValid,
+  calculateDiscountAmount,
+} from "@/api/discount";
+import { getShippingMethods, ShippingMethod } from "@/api/shipping";
+import { getPaymentMethods, PaymentMethod } from "@/api/payment";
 
 // Types
 interface CartItem {
@@ -74,38 +87,78 @@ interface ReceiverInfo {
   address: string;
 }
 
-interface OrderData {
-  shopId: number;
-  receiver: ReceiverInfo;
-  cartItemIds: number[];
-}
-
 const CheckoutScreen: React.FC = () => {
   const classes = useStyles();
   const router = useRouter();
-  
+
+  // Cart data
   const [cartGroups, setCartGroups] = useState<CartGroup[]>([]);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
+
+  // Receiver info
   const [receiver, setReceiver] = useState<ReceiverInfo>({
     name: "",
     phone: "",
     address: "",
   });
-  const [shippingMethod, setShippingMethod] = useState("standard");
-  const [paymentMethod, setPaymentMethod] = useState("cod");
-  const [discountCode, setDiscountCode] = useState("");
+
+  // Shipping, Payment, Discount
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
+  const [selectedShippingMethod, setSelectedShippingMethod] =
+    useState<ShippingMethod | null>(null);
+
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<PaymentMethod | null>(null);
+
+  const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([]);
+  const [discountCodeInput, setDiscountCodeInput] = useState("");
+  const [appliedDiscountCode, setAppliedDiscountCode] =
+    useState<DiscountCode | null>(null);
+
+  // UI states
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
 
-  // Fake data for shipping and discount
-  const shippingFees = {
-    standard: 30000,
-    express: 50000,
-    overnight: 80000,
-  };
+  // Fetch initial data (shipping methods, payment methods, discount codes)
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      setLoadingData(true);
+      try {
+        // Fetch shipping methods
+        const shippingResponse = await getShippingMethods({ isActive: true });
+        if (shippingResponse && shippingResponse.data.length > 0) {
+          setShippingMethods(shippingResponse.data);
+          setSelectedShippingMethod(shippingResponse.data[0]); // Select first by default
+        }
 
-  const discountAmount = discountCode === "SAVE10" ? 50000 : 0;
+        // Fetch payment methods
+        const paymentResponse = await getPaymentMethods({ isActive: true });
+        if (paymentResponse && paymentResponse.data.length > 0) {
+          setPaymentMethods(paymentResponse.data);
+          setSelectedPaymentMethod(paymentResponse.data[0]); // Select first by default
+        }
+
+        // Fetch discount codes
+        const discountResponse = await getDiscountCodes({
+          isActive: true,
+          page: 1,
+          limit: 100,
+        });
+        if (discountResponse && discountResponse.data.length > 0) {
+          setDiscountCodes(discountResponse.data);
+        }
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchInitialData();
+  }, []);
 
   useEffect(() => {
     // Get data from router query (passed from Cart page)
@@ -123,11 +176,12 @@ const CheckoutScreen: React.FC = () => {
   }, [router.query]);
 
   const getSelectedItems = () => {
-    return cartGroups.flatMap(group => 
-      group.items.filter(item => selectedItems.includes(item.id))
+    return cartGroups.flatMap((group) =>
+      group.items.filter((item) => selectedItems.includes(item.id))
     );
   };
 
+  // BƯỚC 1: Tính subtotal (tổng tiền hàng)
   const calculateSubtotal = () => {
     return getSelectedItems().reduce(
       (total, item) => total + item.sku.price * item.quantity,
@@ -135,21 +189,74 @@ const CheckoutScreen: React.FC = () => {
     );
   };
 
-  const calculateShippingFee = () => {
-    // Calculate shipping fee based on number of shops
-    const uniqueShops = new Set(cartGroups.map(group => group.shop.id));
-    return uniqueShops.size * shippingFees[shippingMethod as keyof typeof shippingFees];
+  // BƯỚC 2: Tính discount amount (số tiền giảm)
+  const getDiscountAmount = () => {
+    if (!appliedDiscountCode) return 0;
+    return calculateDiscountAmount(appliedDiscountCode, calculateSubtotal());
   };
 
+  // BƯỚC 3: Lấy phí ship
+  const getShippingFee = () => {
+    if (!selectedShippingMethod) return 0;
+    // Tính phí ship theo số lượng shop
+    const uniqueShops = new Set(
+      getSelectedItems().map((item) => item.sku.product.createdBy.id)
+    );
+    return uniqueShops.size * selectedShippingMethod.price;
+  };
+
+  // BƯỚC 4: Tính total (tổng tiền cuối)
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateShippingFee() - discountAmount;
+    const subtotal = calculateSubtotal();
+    const shippingFee = getShippingFee();
+    const discountAmount = getDiscountAmount();
+    const total = subtotal + shippingFee - discountAmount;
+    return Math.max(0, total); // Không được âm
   };
 
   const handleReceiverChange = (field: keyof ReceiverInfo, value: string) => {
-    setReceiver(prev => ({
+    setReceiver((prev) => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleApplyDiscountCode = () => {
+    if (!discountCodeInput.trim()) {
+      dispatch(showErrorSnackBar("Vui lòng nhập mã giảm giá"));
+      return;
+    }
+
+    // Tìm mã giảm giá trong danh sách
+    const foundCode = discountCodes.find(
+      (code) => code.code.toUpperCase() === discountCodeInput.toUpperCase()
+    );
+
+    if (!foundCode) {
+      dispatch(showErrorSnackBar("Mã giảm giá không tồn tại"));
+      return;
+    }
+
+    // Kiểm tra mã có hợp lệ không
+    const validation = isDiscountCodeValid(foundCode);
+    if (!validation.valid) {
+      dispatch(
+        showErrorSnackBar(validation.reason || "Mã giảm giá không hợp lệ")
+      );
+      return;
+    }
+
+    // Áp dụng mã giảm giá
+    setAppliedDiscountCode(foundCode);
+    dispatch(
+      showSuccessSnackBar(`Áp dụng mã giảm giá thành công: ${foundCode.code}`)
+    );
+  };
+
+  const handleRemoveDiscountCode = () => {
+    setAppliedDiscountCode(null);
+    setDiscountCodeInput("");
+    dispatch(showSuccessSnackBar("Đã xóa mã giảm giá"));
   };
 
   const validateForm = () => {
@@ -171,52 +278,193 @@ const CheckoutScreen: React.FC = () => {
   const handlePlaceOrder = async () => {
     if (!validateForm()) return;
 
-    // If online payment is selected, show QR code first
-    if (paymentMethod === "online" && !paymentCompleted) {
+    // If online payment is selected, show QR code first (chưa tạo đơn hàng)
+    // Check if payment method is NOT COD (cash on delivery)
+    if (selectedPaymentMethod?.key !== "cod" && !paymentCompleted) {
       setShowQRDialog(true);
       return;
     }
 
     setLoading(true);
     try {
-      // Prepare order data
-      const orderData: OrderData[] = cartGroups.map(group => ({
-        shopId: group.shop.id,
-        receiver,
-        cartItemIds: group.items
-          .filter(item => selectedItems.includes(item.id))
-          .map(item => item.id),
-      })).filter(order => order.cartItemIds.length > 0);
+      // Tính toán các giá trị tài chính
+      const subtotal = calculateSubtotal();
+      const discountAmount = getDiscountAmount();
+      const total = calculateTotal();
+
+      // Prepare order data theo từng shop
+      const orderData: OrderItem[] = cartGroups
+        .map((group) => {
+          const groupItems = group.items.filter((item) =>
+            selectedItems.includes(item.id)
+          );
+
+          // Tính subtotal cho từng shop
+          const shopSubtotal = groupItems.reduce(
+            (sum, item) => sum + item.sku.price * item.quantity,
+            0
+          );
+
+          // Tính discount amount cho từng shop (phân bổ theo tỷ lệ)
+          const shopDiscountAmount =
+            subtotal > 0
+              ? Math.floor((shopSubtotal / subtotal) * discountAmount)
+              : 0;
+
+          // Tính shipping fee cho shop
+          const shopShippingFee = selectedShippingMethod
+            ? selectedShippingMethod.price
+            : 0;
+
+          // Tính total cho shop
+          const shopTotal = shopSubtotal + shopShippingFee - shopDiscountAmount;
+
+          return {
+            shopId: group.shop.id,
+            receiver,
+            cartItemIds: groupItems.map((item) => item.id),
+            // Tính toán tài chính (BẮT BUỘC)
+            subtotal: shopSubtotal,
+            discountAmount: shopDiscountAmount,
+            total: Math.max(0, shopTotal),
+            // Các trường tùy chọn
+            discountCodeId: appliedDiscountCode?.id,
+            shippingMethodId: selectedShippingMethod?.id,
+            paymentMethodId: selectedPaymentMethod?.id,
+          };
+        })
+        .filter((order) => order.cartItemIds.length > 0);
+
+      if (orderData.length === 0) {
+        dispatch(showErrorSnackBar("Không có sản phẩm nào được chọn"));
+        return;
+      }
 
       // Call order API
       const response = await createOrder(orderData);
 
-      if (response) {
+      if (response ) {
         dispatch(showSuccessSnackBar("Đặt hàng thành công!"));
+
+        // Dispatch cart-updated event to update cart badge in Header
+        window.dispatchEvent(new Event("cart-updated"));
+
         router.push("/orders"); // Redirect to orders page
       } else {
         throw new Error("Failed to place order");
       }
     } catch (error) {
+      console.error("Error placing order:", error);
       dispatch(showErrorSnackBar("Đặt hàng thất bại. Vui lòng thử lại."));
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePaymentComplete = () => {
-    setPaymentCompleted(true);
-    setShowQRDialog(false);
-    // Auto proceed with order after payment
-    setTimeout(() => {
-      handlePlaceOrder();
-    }, 500);
+  // Hàm xử lý khi click vào QR code - TẠO đơn hàng VÀ cập nhật trạng thái
+  const handleQRCodeClick = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      // Tính toán các giá trị tài chính
+      const subtotal = calculateSubtotal();
+      const discountAmount = getDiscountAmount();
+
+      // Prepare order data theo từng shop
+      const orderData: OrderItem[] = cartGroups
+        .map((group) => {
+          const groupItems = group.items.filter((item) =>
+            selectedItems.includes(item.id)
+          );
+
+          // Tính subtotal cho từng shop
+          const shopSubtotal = groupItems.reduce(
+            (sum, item) => sum + item.sku.price * item.quantity,
+            0
+          );
+
+          // Tính discount amount cho từng shop (phân bổ theo tỷ lệ)
+          const shopDiscountAmount =
+            subtotal > 0
+              ? Math.floor((shopSubtotal / subtotal) * discountAmount)
+              : 0;
+
+          // Tính shipping fee cho shop
+          const shopShippingFee = selectedShippingMethod
+            ? selectedShippingMethod.price
+            : 0;
+
+          // Tính total cho shop
+          const shopTotal = shopSubtotal + shopShippingFee - shopDiscountAmount;
+
+          return {
+            shopId: group.shop.id,
+            receiver,
+            cartItemIds: groupItems.map((item) => item.id),
+            // Tính toán tài chính (BẮT BUỘC)
+            subtotal: shopSubtotal,
+            discountAmount: shopDiscountAmount,
+            total: Math.max(0, shopTotal),
+            // Các trường tùy chọn
+            discountCodeId: appliedDiscountCode?.id,
+            shippingMethodId: selectedShippingMethod?.id,
+            paymentMethodId: selectedPaymentMethod?.id,
+          };
+        })
+        .filter((order) => order.cartItemIds.length > 0);
+
+      if (orderData.length === 0) {
+        dispatch(showErrorSnackBar("Không có sản phẩm nào được chọn"));
+        setLoading(false);
+        return;
+      }
+
+      // BƯỚC 1: Tạo đơn hàng
+      const response = await createOrder(orderData);
+
+      if (!response || !response.orders) {
+        throw new Error("Failed to create order");
+      }
+
+      // BƯỚC 2: Cập nhật trạng thái tất cả đơn hàng thành PENDING_PICKUP
+      const orderIds = response.orders.map((order) => order.id);
+      const updatePromises = orderIds.map((orderId) =>
+        updateOrderStatus(orderId, "PENDING_PICKUP")
+      );
+      
+      await Promise.all(updatePromises);
+      
+      setPaymentCompleted(true);
+      setShowQRDialog(false);
+      
+      dispatch(showSuccessSnackBar("Thanh toán thành công!"));
+      
+      // Dispatch cart-updated event to update cart badge in Header
+      window.dispatchEvent(new Event("cart-updated"));
+      
+      // Redirect to orders page
+      router.push("/orders");
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      dispatch(showErrorSnackBar("Thanh toán thất bại. Vui lòng thử lại."));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (cartGroups.length === 0) {
+  if (cartGroups.length === 0 || loadingData) {
     return (
-      <Box className={classes.checkoutContainer}>
-        <Typography variant="h6">Đang tải...</Typography>
+      <Box
+        className={classes.checkoutContainer}
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "400px",
+        }}
+      >
+        <CircularProgress />
       </Box>
     );
   }
@@ -247,7 +495,9 @@ const CheckoutScreen: React.FC = () => {
                   label="Số điện thoại"
                   fullWidth
                   value={receiver.phone}
-                  onChange={(e) => handleReceiverChange("phone", e.target.value)}
+                  onChange={(e) =>
+                    handleReceiverChange("phone", e.target.value)
+                  }
                   required
                 />
                 <TextField
@@ -256,7 +506,9 @@ const CheckoutScreen: React.FC = () => {
                   multiline
                   rows={3}
                   value={receiver.address}
-                  onChange={(e) => handleReceiverChange("address", e.target.value)}
+                  onChange={(e) =>
+                    handleReceiverChange("address", e.target.value)
+                  }
                   required
                 />
               </Box>
@@ -269,29 +521,33 @@ const CheckoutScreen: React.FC = () => {
               <Typography variant="h6" className={classes.sectionTitle}>
                 Phương thức vận chuyển
               </Typography>
-              <FormControl component="fieldset">
-                <RadioGroup
-                  value={shippingMethod}
-                  onChange={(e) => setShippingMethod(e.target.value)}
-                  className={classes.shippingMethods}
-                >
-                  <FormControlLabel
-                    value="standard"
-                    control={<Radio />}
-                    label={`Giao hàng tiêu chuẩn (${shippingFees.standard.toLocaleString()} VND)`}
-                  />
-                  <FormControlLabel
-                    value="express"
-                    control={<Radio />}
-                    label={`Giao hàng nhanh (${shippingFees.express.toLocaleString()} VND)`}
-                  />
-                  <FormControlLabel
-                    value="overnight"
-                    control={<Radio />}
-                    label={`Giao hàng trong ngày (${shippingFees.overnight.toLocaleString()} VND)`}
-                  />
-                </RadioGroup>
-              </FormControl>
+              {shippingMethods.length > 0 ? (
+                <FormControl component="fieldset" fullWidth>
+                  <RadioGroup
+                    value={selectedShippingMethod?.id.toString() || ""}
+                    onChange={(e) => {
+                      const method = shippingMethods.find(
+                        (m) => m.id === Number(e.target.value)
+                      );
+                      setSelectedShippingMethod(method || null);
+                    }}
+                    className={classes.shippingMethods}
+                  >
+                    {shippingMethods.map((method) => (
+                      <FormControlLabel
+                        key={method.id}
+                        value={method.id.toString()}
+                        control={<Radio />}
+                        label={`${method.name} - ${method.provider} (${method.price.toLocaleString()} VND)`}
+                      />
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Không có phương thức vận chuyển khả dụng
+                </Typography>
+              )}
             </CardContent>
           </Card>
 
@@ -304,18 +560,41 @@ const CheckoutScreen: React.FC = () => {
               <Box className={classes.discountSection}>
                 <TextField
                   label="Nhập mã giảm giá"
-                  value={discountCode}
-                  onChange={(e) => setDiscountCode(e.target.value)}
-                  placeholder="Nhập SAVE10 để giảm 50,000 VND"
+                  value={discountCodeInput}
+                  onChange={(e) =>
+                    setDiscountCodeInput(e.target.value.toUpperCase())
+                  }
+                  placeholder="Ví dụ: SALE20"
+                  disabled={!!appliedDiscountCode}
                 />
-                <Button variant="outlined">
-                  Áp dụng
-                </Button>
+                {appliedDiscountCode ? (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={handleRemoveDiscountCode}
+                  >
+                    Xóa
+                  </Button>
+                ) : (
+                  <Button variant="outlined" onClick={handleApplyDiscountCode}>
+                    Áp dụng
+                  </Button>
+                )}
               </Box>
-              {discountAmount > 0 && (
-                <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
-                  Giảm giá: -{discountAmount.toLocaleString()} VND
-                </Typography>
+              {appliedDiscountCode && (
+                <Alert severity="success" sx={{ mt: 2 }}>
+                  <Typography variant="body2">
+                    Mã giảm giá: <strong>{appliedDiscountCode.code}</strong>
+                  </Typography>
+                  <Typography variant="body2">
+                    {appliedDiscountCode.type === "PERCENTAGE"
+                      ? `Giảm ${appliedDiscountCode.value}%`
+                      : `Giảm ${appliedDiscountCode.value.toLocaleString()} VND`}
+                  </Typography>
+                  <Typography variant="body2" color="success.main">
+                    Tiết kiệm: -{getDiscountAmount().toLocaleString()} VND
+                  </Typography>
+                </Alert>
               )}
             </CardContent>
           </Card>
@@ -326,24 +605,47 @@ const CheckoutScreen: React.FC = () => {
               <Typography variant="h6" className={classes.sectionTitle}>
                 Phương thức thanh toán
               </Typography>
-              <FormControl component="fieldset">
-                <RadioGroup
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className={classes.paymentMethods}
-                >
-                  <FormControlLabel
-                    value="cod"
-                    control={<Radio />}
-                    label="Thanh toán khi nhận hàng (COD)"
-                  />
-                  <FormControlLabel
-                    value="online"
-                    control={<Radio />}
-                    label="Thanh toán online"
-                  />
-                </RadioGroup>
-              </FormControl>
+              {paymentMethods.length > 0 ? (
+                <FormControl component="fieldset" fullWidth>
+                  <RadioGroup
+                    value={selectedPaymentMethod?.id.toString() || ""}
+                    onChange={(e) => {
+                      const method = paymentMethods.find(
+                        (m) => m.id === Number(e.target.value)
+                      );
+                      setSelectedPaymentMethod(method || null);
+                      // Reset payment completed status when changing method
+                      setPaymentCompleted(false);
+                    }}
+                    className={classes.paymentMethods}
+                  >
+                    {paymentMethods.map((method) => (
+                      <FormControlLabel
+                        key={method.id}
+                        value={method.id.toString()}
+                        control={<Radio />}
+                        label={
+                          <Box>
+                            <Typography variant="body1">
+                              {method.name}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {method.description}
+                            </Typography>
+                          </Box>
+                        }
+                      />
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Không có phương thức thanh toán khả dụng
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -355,7 +657,7 @@ const CheckoutScreen: React.FC = () => {
               <Typography variant="h6" className={classes.sectionTitle}>
                 Đơn hàng của bạn
               </Typography>
-              
+
               {/* Items */}
               {getSelectedItems().map((item) => (
                 <Box key={item.id} className={classes.orderItem}>
@@ -383,19 +685,21 @@ const CheckoutScreen: React.FC = () => {
               {/* Price breakdown */}
               <Box className={classes.priceRow}>
                 <Typography>Tạm tính:</Typography>
-                <Typography>{calculateSubtotal().toLocaleString()} VND</Typography>
+                <Typography>
+                  {calculateSubtotal().toLocaleString()} VND
+                </Typography>
               </Box>
-              
+
               <Box className={classes.priceRow}>
                 <Typography>Phí vận chuyển:</Typography>
-                <Typography>{calculateShippingFee().toLocaleString()} VND</Typography>
+                <Typography>{getShippingFee().toLocaleString()} VND</Typography>
               </Box>
-              
-              {discountAmount > 0 && (
+
+              {getDiscountAmount() > 0 && (
                 <Box className={classes.priceRow}>
                   <Typography>Giảm giá:</Typography>
                   <Typography color="success.main">
-                    -{discountAmount.toLocaleString()} VND
+                    -{getDiscountAmount().toLocaleString()} VND
                   </Typography>
                 </Box>
               )}
@@ -413,7 +717,11 @@ const CheckoutScreen: React.FC = () => {
                 disabled={loading}
                 sx={{ mt: 2 }}
               >
-                {loading ? "Đang xử lý..." : paymentMethod === "online" && !paymentCompleted ? "Thanh toán" : "Đặt hàng"}
+                {loading
+                  ? "Đang xử lý..."
+                  : selectedPaymentMethod?.key === "vnpay" && !paymentCompleted
+                    ? "Thanh toán"
+                    : "Đặt hàng"}
               </Button>
             </CardContent>
           </Card>
@@ -440,49 +748,60 @@ const CheckoutScreen: React.FC = () => {
             <Typography variant="h6" color="primary" gutterBottom>
               Số tiền: {calculateTotal().toLocaleString()} VND
             </Typography>
-            
+
             {/* QR Code - Using a placeholder image service */}
             <Box
               sx={{
                 display: "flex",
                 justifyContent: "center",
                 my: 3,
+                cursor: "pointer",
               }}
+              onClick={handleQRCodeClick}
+              title="Click vào mã QR để xác nhận thanh toán"
             >
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PAY:${calculateTotal()}:VND`}
                 alt="QR Code for payment"
-                style={{ 
-                  border: "2px solid #ddd", 
+                style={{
+                  border: "2px solid #ddd",
                   borderRadius: 8,
                   width: 200,
-                  height: 200
+                  height: 200,
+                  transition: "transform 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
                 }}
               />
             </Box>
-            
+
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Sử dụng ứng dụng ngân hàng hoặc ví điện tử để quét mã QR
             </Typography>
-            
+            <Typography variant="body2" color="primary" gutterBottom>
+              👆 Click vào mã QR để xác nhận đã thanh toán
+            </Typography>
+
             <Typography variant="caption" color="text.secondary">
               Mã thanh toán: PAY{Date.now()}
             </Typography>
           </Box>
         </DialogContent>
         <DialogActions sx={{ justifyContent: "center", pb: 3 }}>
-          <Button
-            onClick={() => setShowQRDialog(false)}
-            variant="outlined"
-          >
+          <Button onClick={() => setShowQRDialog(false)} variant="outlined" disabled={loading}>
             Hủy
           </Button>
           <Button
-            onClick={handlePaymentComplete}
+            onClick={handleQRCodeClick}
             variant="contained"
             color="success"
+            disabled={loading}
           >
-            Đã thanh toán
+            {loading ? "Đang xử lý..." : "Đã thanh toán"}
           </Button>
         </DialogActions>
       </Dialog>

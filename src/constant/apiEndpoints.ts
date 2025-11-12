@@ -34,4 +34,20 @@ export const apiEndPoints = {
   //#region Messages
   MESSAGES: `${API_LOCAL}/messages`,
   //#endregion Messages
+
+  //#region Seller Registration
+  SELLER_REGISTRATION: `${API_LOCAL}/seller-registration`,
+  //#endregion Seller Registration
+
+  //#region Discount Codes
+  DISCOUNT_CODES: `${API_LOCAL}/discount-codes`,
+  //#endregion Discount Codes
+
+  //#region Shipping Methods
+  SHIPPING_METHODS: `${API_LOCAL}/shipping-methods`,
+  //#endregion Shipping Methods
+
+  //#region Payment Methods
+  PAYMENT_METHODS: `${API_LOCAL}/payment-methods`,
+  //#endregion Payment Methods
 };
