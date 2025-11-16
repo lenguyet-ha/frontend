@@ -25,12 +25,13 @@ export interface DiscountCodesResponse {
 
 /**
  * Lấy danh sách mã giảm giá
- * @param params - Query parameters (isActive, page, limit)
+ * @param params - Query parameters (isActive, page, limit, shopId)
  */
 export const getDiscountCodes = async (params?: {
   isActive?: boolean;
   page?: number;
   limit?: number;
+  shopId?: number;
 }): Promise<DiscountCodesResponse | null> => {
   try {
     const payload = {
@@ -47,6 +48,79 @@ export const getDiscountCodes = async (params?: {
     return response.data;
   } catch (error) {
     console.error("Error fetching discount codes:", error);
+    return null;
+  }
+};
+
+/**
+ * Lấy chi tiết mã giảm giá theo id
+ */
+export const getDiscountCodeById = async (
+  discountCodeId: number
+): Promise<DiscountCode | null> => {
+  try {
+    const response = await axios({
+      method: "GET",
+      url: `${apiEndPoints.DISCOUNT_CODES}/${discountCodeId}`,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching discount code by id:", error);
+    return null;
+  }
+};
+
+/**
+ * Tạo mã giảm giá (yêu cầu Bearer token)
+ */
+export const createDiscountCode = async (body: any): Promise<DiscountCode | null> => {
+  try {
+    const response = await axios({
+      method: "POST",
+      url: `${apiEndPoints.DISCOUNT_CODES}`,
+      data: body,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error creating discount code:", error);
+    return null;
+  }
+};
+
+/**
+ * Cập nhật mã giảm giá theo id (yêu cầu Bearer token)
+ */
+export const updateDiscountCode = async (
+  discountCodeId: number,
+  body: any
+): Promise<DiscountCode | null> => {
+  try {
+    const response = await axios({
+      method: "PUT",
+      url: `${apiEndPoints.DISCOUNT_CODES}/${discountCodeId}`,
+      data: body,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating discount code:", error);
+    return null;
+  }
+};
+
+/**
+ * Xóa mã giảm giá theo id (yêu cầu Bearer token)
+ */
+export const deleteDiscountCode = async (
+  discountCodeId: number
+): Promise<DiscountCode | null> => {
+  try {
+    const response = await axios({
+      method: "DELETE",
+      url: `${apiEndPoints.DISCOUNT_CODES}/${discountCodeId}`,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting discount code:", error);
     return null;
   }
 };
