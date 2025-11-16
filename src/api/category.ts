@@ -14,3 +14,13 @@ export const list = async (query: any) => {
     return null;
   }
 };
+
+export const getListAsync = async (params?: { limit?: number; offset?: number }) => {
+  try {
+    const response = await axios.get(apiEndPoints.CATEGORIES, { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return null;
+  }
+};

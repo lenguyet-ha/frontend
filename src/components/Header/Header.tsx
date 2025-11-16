@@ -11,7 +11,6 @@ import {
   Popover,
 } from "@mui/material";
 import { Search, ShoppingCart, Person, Message } from "@mui/icons-material";
-import * as ProductApi from "@/api/product";
 import * as CartApi from "@/api/cart";
 import * as MessagesApi from "@/api/messages";
 import ConversationsList from "@/components/ConversationsList";
@@ -32,7 +31,6 @@ import {
   StyledAvatar,
   StyledMenu,
 } from "./Header.styles";
-import { display } from "@mui/system";
 
 const Header = () => {
   const router = useRouter();
@@ -44,28 +42,30 @@ const Header = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showConversations, setShowConversations] = useState(false);
-  const [conversationsAnchor, setConversationsAnchor] = useState<null | HTMLElement>(null);
+  const [conversationsAnchor, setConversationsAnchor] =
+    useState<null | HTMLElement>(null);
 
   // Get user info from localStorage
-  useEffect(() => {
-    const loadUserInfo = () => {
-      const storedUserInfo = localStorage.getItem("userInfo");
-      if (storedUserInfo) {
-        const user = JSON.parse(storedUserInfo);
-        setUserInfo(user);
-        
-        // Connect to WebSocket if not already connected
-        const token = localStorage.getItem('accessToken');
-        if (token && !socketService.isConnected) {
-          socketService.connect(token);
-        }
-      } else {
-        setUserInfo(null);
-        // Disconnect WebSocket if user logs out
-        socketService.disconnect();
-      }
-    };
+  const loadUserInfo = () => {
+    const storedUserInfo = localStorage.getItem("userInfo");
+    if (storedUserInfo) {
+      const user = JSON.parse(storedUserInfo);
+      console.log("Loaded user info:", user);
+      setUserInfo(user);
 
+      // Connect to WebSocket if not already connected
+      const token = localStorage.getItem("accessToken");
+      if (token && !socketService.isConnected) {
+        socketService.connect(token);
+      }
+    } else {
+      setUserInfo(null);
+      // Disconnect WebSocket if user logs out
+      socketService.disconnect();
+    }
+  };
+
+  useEffect(() => {
     loadUserInfo();
 
     // Listen for user updates
@@ -86,14 +86,14 @@ const Header = () => {
       setUnreadCount(0);
       return;
     }
-    
+
     try {
       const response = await MessagesApi.getUnreadCount();
       if (response.success) {
         setUnreadCount(response.data.unreadCount || 0);
       }
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      console.error("Error fetching unread count:", error);
     }
   }, [userInfo]);
 
@@ -109,15 +109,15 @@ const Header = () => {
       fetchUnreadCount();
     };
 
-    socketService.on('message_notification', handleNewMessage);
-    socketService.on('messages_read', handleMessageRead);
+    socketService.on("message_notification", handleNewMessage);
+    socketService.on("messages_read", handleMessageRead);
 
     // Initial fetch
     fetchUnreadCount();
 
     return () => {
-      socketService.off('message_notification');
-      socketService.off('messages_read');
+      socketService.off("message_notification");
+      socketService.off("messages_read");
     };
   }, [userInfo, fetchUnreadCount]);
 
@@ -196,16 +196,21 @@ const Header = () => {
     setConversationsAnchor(null);
   }, []);
 
-  const handleConversationSelect = useCallback((user: User) => {
-    dispatch(closeChat());
-    dispatch(openChat({
-      id: user.id,
-      name: user.name,
-      avatar: user.avatar,
-    }));
-    setShowConversations(false);
-    setConversationsAnchor(null);
-  }, [dispatch]);
+  const handleConversationSelect = useCallback(
+    (user: User) => {
+      dispatch(closeChat());
+      dispatch(
+        openChat({
+          id: user.id,
+          name: user.name,
+          avatar: user.avatar,
+        })
+      );
+      setShowConversations(false);
+      setConversationsAnchor(null);
+    },
+    [dispatch]
+  );
 
   const handleCloseChat = useCallback(() => {
     dispatch(closeChat());
@@ -223,6 +228,11 @@ const Header = () => {
 
   const handleSellerRegistrationClick = useCallback(() => {
     router.push("/seller-registration");
+    handleCloseMenu();
+  }, [router]);
+
+  const handleSellerPageClick = useCallback(() => {
+    router.push("/seller");
     handleCloseMenu();
   }, [router]);
 
@@ -322,9 +332,16 @@ const Header = () => {
                     Thông tin cá nhân
                   </MenuItem>
                   <MenuItem onClick={handleListOrdersClick}>Đơn mua</MenuItem>
-                  <MenuItem onClick={handleSellerRegistrationClick}>
-                    Đăng ký bán hàng
-                  </MenuItem>
+                  {userInfo.role.name === "SELLER" && (
+                    <MenuItem onClick={handleSellerPageClick}>
+                      Trang người bán
+                    </MenuItem>
+                  )}
+                  {userInfo.role.name !== "SELLER" && (
+                    <MenuItem onClick={handleSellerRegistrationClick}>
+                      Đăng ký bán hàng
+                    </MenuItem>
+                  )}
                   <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
                 </StyledMenu>
               </AvatarBox>
@@ -340,12 +357,12 @@ const Header = () => {
         anchorEl={conversationsAnchor}
         onClose={handleCloseConversations}
         anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
+          vertical: "bottom",
+          horizontal: "right",
         }}
         transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
+          vertical: "top",
+          horizontal: "right",
         }}
       >
         {userInfo && (
@@ -360,12 +377,7 @@ const Header = () => {
 
       {/* Chat Modal */}
       {chat.isOpen && chat.currentUser && userInfo && (
-        <Box
-          position="fixed"
-          bottom={16}
-          right={16}
-          zIndex={1400}
-        >
+        <Box position="fixed" bottom={16} right={16} zIndex={1400}>
           <Chat
             open={chat.isOpen}
             onClose={handleCloseChat}

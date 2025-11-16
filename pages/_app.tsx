@@ -12,7 +12,9 @@ import { store } from "@/store";
 
 export default function App(props: AppProps) {
   const { Component, pageProps, router } = props;
-  const shouldRenderLayout = !["/login"].includes(router.pathname);
+  // Exclude login and seller pages from default layout
+  const shouldRenderLayout = !["/login"].includes(router.pathname) && 
+                             !router.pathname.startsWith("/seller");
 
   return (
     <>

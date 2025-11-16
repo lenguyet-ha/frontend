@@ -187,6 +187,7 @@ const LoginScreen = React.memo(() => {
               name: userInfo?.name,
               phoneNumber: userInfo?.phoneNumber,
               avatar: userInfo?.avatar,
+              ...userInfo,
             })
           );
           dispatch(

@@ -1,0 +1,12 @@
+export const ROW_ACTION_TYPE = {
+  ADD: "ADD",
+  EDIT: "EDIT",
+  VIEW: "VIEW",
+  DELETE: "DELETE",
+};
+
+export const PRODUCT_STATUS = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+  WAITING_ACTIVE: "WAITING_ACTIVE",
+};
